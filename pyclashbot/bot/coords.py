@@ -91,7 +91,10 @@ MAG_DUMP_CARD_COORDS = [
     (274, 599),
     (336, 555),
 ]
-BATTLE_WAIT_DEADSPACE_COORD = (20, 200)
+# Tapped repeatedly while waiting for matchmaking. Must be plain background on the
+# main menu too: (20, 200) sat on the daily-gift icon and toggled its popup forever
+# whenever the search was cancelled. Same dead spot as CLASH_MAIN_DEADSPACE_COORD.
+BATTLE_WAIT_DEADSPACE_COORD = (35, 500)
 
 # --- Account switch ---
 SWITCH_ACCOUNT_BUTTON_COORD = (221, 468)
