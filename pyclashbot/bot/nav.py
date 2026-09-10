@@ -163,11 +163,20 @@ def wait_for_clash_main_menu(
     """
     wait_timeout = CLASH_MAIN_WAIT_TIMEOUT if timeout is None else timeout
     start_time: float = time.time()
-    while check_if_on_clash_main_menu(emulator) is not True:
+    while True:
+        if check_if_on_clash_main_menu(emulator) is True:
+            # A popup (trophy-road rewards, clan voyage) can open a moment after
+            # main first shows; confirm main is still there before returning.
+            time.sleep(1)
+            if check_if_on_clash_main_menu(emulator) is True:
+                return True
+            continue
+
         # timeout check
         if time.time() - start_time > wait_timeout:
             logger.change_status("Timed out waiting for main menu")
-            break
+            print("Failed to get to clash main! Saw these pixels before restarting:")
+            return False
 
         # handle geting stuck on trophy road screen
         if check_for_trophy_reward_menu(emulator):
@@ -190,13 +199,6 @@ def wait_for_clash_main_menu(
                 CLASH_MAIN_MENU_DEADSPACE_COORD[1],
             )
         time.sleep(1)
-
-    time.sleep(1)
-    if check_if_on_clash_main_menu(emulator) is not True:
-        print("Failed to get to clash main! Saw these pixels before restarting:")
-        return False
-
-    return True
 
 
 def get_to_card_page_from_clash_main(
