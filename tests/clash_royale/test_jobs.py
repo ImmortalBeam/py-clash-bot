@@ -18,6 +18,7 @@ from .jobs.test_clan_chat_claim import run_test as clan_chat_claim
 from .jobs.test_clan_chat_donate import run_test as clan_chat_donate
 from .jobs.test_clan_chat_request import run_test as clan_chat_request
 from .jobs.test_cycle_deck import run_test as cycle_deck
+from .jobs.test_play_again import run_test as play_again
 from .jobs.test_randomize_deck import run_test as randomize_deck
 from .jobs.test_select_battle_mode import run_test as select_battle_mode
 from .jobs.test_setup import run_app_installed
@@ -46,6 +47,7 @@ SUITE = [
     ("randomize_deck", randomize_deck),
     ("cycle_deck", cycle_deck),
     ("1v1_fight", fight_1v1),
+    ("play_again", play_again),
     ("2v2_fight", fight_2v2),
 ]
 
