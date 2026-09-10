@@ -160,6 +160,26 @@ JOBS = [
         tooltip="Play Trophy Road 1v1 battles.",
     ),
     JobConfig(
+        UIField.PLAY_AGAIN_USER_TOGGLE,
+        "🔁 Play again",
+        default=False,
+        tooltip=(
+            "After a Trophy Road or Classic 1v1 battle, press Play Again on the result screen "
+            "instead of returning to the main menu. After the set number of fights in a row the bot "
+            "returns to the main menu once so the other jobs run. Wins/losses are read from the result screen."
+        ),
+        extras={
+            UIField.MAX_PLAY_AGAIN_SELECTION: ComboConfig(
+                key=UIField.MAX_PLAY_AGAIN_SELECTION,
+                label="Fights in a row",
+                values=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20],
+                default=5,
+                label_size=(15, 1),
+                tooltip="Consecutive Play Again presses before returning to the main menu (1-20).",
+            )
+        },
+    ),
+    JobConfig(
         UIField.RANDOM_DECKS_USER_TOGGLE,
         "🎲 Randomize deck",
         default=False,
