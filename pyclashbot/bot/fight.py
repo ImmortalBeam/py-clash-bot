@@ -22,10 +22,13 @@ from pyclashbot.bot.coords import (
     QUICKMATCH_POPUP_BUTTON_COORD,
     START_FIGHT_BUTTON_COORD,
 )
+from pyclashbot.bot.find import find_play_again_button
 from pyclashbot.bot.nav import (
     check_for_in_battle_with_delay,
     get_to_activity_log,
     get_to_main_after_fight,
+    handle_reward_choice,
+    handle_trophy_reward_menu,
     wait_for_battle_start,
     wait_for_clash_main_menu,
 )
@@ -37,9 +40,12 @@ from pyclashbot.bot.recorder import (
     stop_fight_capture,
 )
 from pyclashbot.bot.state_detect import (
+    check_for_reward_choice_screen,
+    check_for_trophy_reward_menu,
     check_if_battle_has_ended,
     check_if_in_battle,
     check_if_on_clash_main_menu,
+    check_if_result_screen_is_victory,
     check_pixels_for_win_in_battle_log,
     count_elixir,
 )
@@ -283,6 +289,94 @@ def wait_for_elixir(
     return True
 
 
+# Result-screen Play Again: how long to look for the button before giving up and
+# taking the normal OK path, and how long to wait for the next battle to begin.
+PLAY_AGAIN_FIND_TIMEOUT_S = 10.0
+PLAY_AGAIN_POLL_INTERVAL_S = 0.5
+PLAY_AGAIN_BATTLE_START_TIMEOUT_S = 60
+
+
+def _apply_fight_outcome(logger: Logger, is_win: bool | None, disable_win_tracker_toggle: bool) -> None:
+    """Record a fight's outcome: win/loss stats (only when the tracker is on and the
+    result is known) and the recording manifest (always closed; no-op when idle)."""
+    if is_win is None:
+        outcome = None
+        logger.log("Fight outcome unknown — not counted")
+    else:
+        outcome = "win" if is_win else "loss"
+        logger.change_status(f"Last game result: {outcome}")
+        if not disable_win_tracker_toggle:
+            if is_win:
+                logger.add_win()
+            else:
+                logger.add_loss()
+
+    finish_fight_recording(outcome)
+
+
+def play_again_state(
+    emulator,
+    logger: Logger,
+    disable_win_tracker_toggle: bool = True,
+) -> Literal["next_fight", "main_menu", "end_fight", "restart"]:
+    """On the 1v1 result screen, record the outcome and press Play Again.
+
+    Returns:
+        "next_fight": Play Again pressed and the next battle started (outcome recorded).
+        "main_menu": Play Again pressed but no battle came; recovered to the main menu
+            (outcome recorded — the caller must skip end_fight's own win check).
+        "end_fight": Play Again never appeared (or the game is already on the main
+            menu); nothing was recorded — take the normal OK path.
+        "restart": recovery to the main menu failed.
+    """
+    logger.change_status("Looking for Play Again on the result screen")
+    deadline = time.time() + PLAY_AGAIN_FIND_TIMEOUT_S
+    button_coord = None
+    while time.time() < deadline:
+        if check_if_on_clash_main_menu(emulator):
+            logger.log("Already on main menu — no Play Again to press")
+            return "end_fight"
+
+        if check_for_trophy_reward_menu(emulator):
+            handle_trophy_reward_menu(emulator, logger, printmode=True)
+            time.sleep(2)
+            continue
+
+        if check_for_reward_choice_screen(emulator):
+            handle_reward_choice(emulator, logger)
+            time.sleep(2)
+            continue
+
+        button_coord = find_play_again_button(emulator)
+        if button_coord is not None:
+            break
+
+        time.sleep(PLAY_AGAIN_POLL_INTERVAL_S)
+
+    if button_coord is None:
+        logger.log("Play Again button not found — falling back to the OK path")
+        return "end_fight"
+
+    # Read the result off this screen before it goes away. Force it while recording so
+    # the pack gets a real outcome; otherwise honor the user's win-tracker toggle.
+    is_win: bool | None = None
+    if is_recording() or not disable_win_tracker_toggle:
+        is_win = check_if_result_screen_is_victory(emulator)
+    _apply_fight_outcome(logger, is_win, disable_win_tracker_toggle)
+
+    logger.change_status("Pressing Play Again")
+    emulator.click(button_coord[0], button_coord[1])
+
+    if wait_for_battle_start(emulator, logger, timeout=PLAY_AGAIN_BATTLE_START_TIMEOUT_S):
+        return "next_fight"
+
+    logger.change_status("No battle after Play Again — returning to main menu")
+    if get_to_main_after_fight(emulator, logger) is False:
+        logger.log("Failed to return to main menu after Play Again")
+        return "restart"
+    return "main_menu"
+
+
 def end_fight_state(
     emulator,
     logger: Logger,
@@ -312,16 +406,7 @@ def end_fight_state(
             finish_fight_recording(None)
             return False
 
-        outcome = "win" if win_check_return else "loss"
-
-        # Only touch the user's win/loss stats when their tracker is enabled.
-        if not disable_win_tracker_toggle:
-            if win_check_return:
-                logger.add_win()
-            else:
-                logger.add_loss()
-
-        finish_fight_recording(outcome)
+        _apply_fight_outcome(logger, win_check_return, disable_win_tracker_toggle)
     else:
         logger.log("Not checking win/loss because check is disabled")
         finish_fight_recording(None)
