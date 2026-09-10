@@ -97,6 +97,8 @@ def make_job_dictionary(values: dict[str, Any]) -> dict[str, Any]:
         UIField.CLASSIC_1V1_USER_TOGGLE.value: as_bool(UIField.CLASSIC_1V1_USER_TOGGLE),
         UIField.CLASSIC_2V2_USER_TOGGLE.value: as_bool(UIField.CLASSIC_2V2_USER_TOGGLE),
         UIField.TROPHY_ROAD_USER_TOGGLE.value: as_bool(UIField.TROPHY_ROAD_USER_TOGGLE),
+        UIField.PLAY_AGAIN_USER_TOGGLE.value: as_bool(UIField.PLAY_AGAIN_USER_TOGGLE),
+        UIField.MAX_PLAY_AGAIN_SELECTION.value: as_int(UIField.MAX_PLAY_AGAIN_SELECTION, 5),
         UIField.RANDOM_DECKS_USER_TOGGLE.value: as_bool(UIField.RANDOM_DECKS_USER_TOGGLE),
         UIField.DECK_NUMBER_SELECTION.value: as_int(UIField.DECK_NUMBER_SELECTION, 2),
         UIField.CYCLE_DECKS_USER_TOGGLE.value: as_bool(UIField.CYCLE_DECKS_USER_TOGGLE),

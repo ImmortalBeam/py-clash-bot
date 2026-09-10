@@ -65,6 +65,7 @@ _JOB_TAB_COLUMNS: tuple[tuple[tuple[str, tuple[UIField, ...]], ...], ...] = (
                 UIField.CLASSIC_1V1_USER_TOGGLE,
                 UIField.CLASSIC_2V2_USER_TOGGLE,
                 UIField.TROPHY_ROAD_USER_TOGGLE,
+                UIField.PLAY_AGAIN_USER_TOGGLE,
                 UIField.WAR_USER_TOGGLE,
             ),
         ),
@@ -106,6 +107,7 @@ _JOB_SPINBOX_LABELS: dict[UIField, str] = {
     UIField.DECK_NUMBER_SELECTION: "Deck slot:",
     UIField.MAX_DECK_SELECTION: "Decks:",
     UIField.MAX_ACCOUNT_SELECTION: "Accounts:",
+    UIField.MAX_PLAY_AGAIN_SELECTION: "Fights:",
 }
 _JOB_TOGGLE_ON_STYLE = "round-toggle"
 _JOB_TOGGLE_OFF_STYLE = "secondary-round-toggle"
@@ -177,6 +179,7 @@ class PyClashBotUI(ttk.Window):
         self._button_state = "idle"
         self.deck_var: ttk.StringVar | None = None
         self.max_deck_var: ttk.StringVar | None = None
+        self.max_play_again_var: ttk.StringVar | None = None
         self.max_account_var: ttk.StringVar | None = None
 
         self.columnconfigure(0, weight=1)
@@ -211,6 +214,9 @@ class PyClashBotUI(ttk.Window):
         values[UIField.CYCLE_DECKS_USER_TOGGLE.value] = bool(self.jobs_vars[UIField.CYCLE_DECKS_USER_TOGGLE].get())
         values[UIField.MAX_DECK_SELECTION.value] = self._safe_int(
             self.max_deck_var.get() if self.max_deck_var is not None else "2", fallback=2
+        )
+        values[UIField.MAX_PLAY_AGAIN_SELECTION.value] = self._safe_int(
+            self.max_play_again_var.get() if self.max_play_again_var is not None else "5", fallback=5
         )
         values[UIField.SWITCH_ACCOUNTS_USER_TOGGLE.value] = bool(
             self.jobs_vars[UIField.SWITCH_ACCOUNTS_USER_TOGGLE].get()
@@ -261,6 +267,8 @@ class PyClashBotUI(ttk.Window):
                 self.deck_var.set(str(values[UIField.DECK_NUMBER_SELECTION.value]))
             if UIField.MAX_DECK_SELECTION.value in values and self.max_deck_var is not None:
                 self.max_deck_var.set(str(values[UIField.MAX_DECK_SELECTION.value]))
+            if UIField.MAX_PLAY_AGAIN_SELECTION.value in values and self.max_play_again_var is not None:
+                self.max_play_again_var.set(str(values[UIField.MAX_PLAY_AGAIN_SELECTION.value]))
             if UIField.MAX_ACCOUNT_SELECTION.value in values and self.max_account_var is not None:
                 self.max_account_var.set(str(values[UIField.MAX_ACCOUNT_SELECTION.value]))
             if UIField.THEME_NAME.value in values:
@@ -671,6 +679,8 @@ class PyClashBotUI(ttk.Window):
                 self.deck_var = spin_var
             elif combo_field == UIField.MAX_DECK_SELECTION:
                 self.max_deck_var = spin_var
+            elif combo_field == UIField.MAX_PLAY_AGAIN_SELECTION:
+                self.max_play_again_var = spin_var
             elif combo_field == UIField.MAX_ACCOUNT_SELECTION:
                 self.max_account_var = spin_var
 
