@@ -173,3 +173,13 @@ REVEAL_MORE_CLAN_CHAT_CARD_OPTIONS_BUTTON_COORD = (50, 125)
 
 # --- Fight: champion ability ---
 CHAMPION_ABILITY_DISMISS_COORD = (330, 460)
+
+# --- Post-battle result screen (Trophy Road / Classic 1v1) ---
+# Yellow "Play Again" sits left of the blue OK button on the result screen.
+PLAY_AGAIN_BUTTON_COORD = (154, 575)
+# Bottom band holding the Play Again / OK buttons; limits template search.
+POST_BATTLE_BUTTON_BAR_SUBCROP = (0, 540, 419, 610)
+# find_image returns the template's top-left; the play_again_button crop is 88x36.
+PLAY_AGAIN_TEMPLATE_CLICK_OFFSET = (44, 18)
+# Band holding the "WINNER!" label above the bottom (own) crowns on a victory.
+RESULT_VICTORY_BANNER_SUBCROP = (120, 235, 300, 285)

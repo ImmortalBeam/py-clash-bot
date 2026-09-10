@@ -1,13 +1,18 @@
 """Pure screen-detection helpers.
 
 Imports only from pyclashbot.detection.*, pyclashbot.utils.*, and pyclashbot.bot.coords.
-Never imports from other pyclashbot.bot.* modules, with one exception:
-detect_upgradable_cards reuses pixel_indicates_upgradable from state_detect (a leaf
-predicate module that does not import from find).
+Never imports from other pyclashbot.bot.* modules, with one exception: pure pixel
+predicates from state_detect (a leaf module that does not import from find), e.g.
+pixel_indicates_upgradable and play_again_pixels_match.
 """
 
-from pyclashbot.bot.coords import UPGRADE_POINTS
-from pyclashbot.bot.state_detect import pixel_indicates_upgradable
+from pyclashbot.bot.coords import (
+    PLAY_AGAIN_BUTTON_COORD,
+    PLAY_AGAIN_TEMPLATE_CLICK_OFFSET,
+    POST_BATTLE_BUTTON_BAR_SUBCROP,
+    UPGRADE_POINTS,
+)
+from pyclashbot.bot.state_detect import pixel_indicates_upgradable, play_again_pixels_match
 from pyclashbot.detection.image_rec import find_image, pixel_is_equal
 
 
@@ -91,6 +96,26 @@ def find_post_battle_button(emulator):
     coord = find_image(iar, "exit_battle_button", tolerance=0.9)
     if coord is not None:
         return coord
+
+    return None
+
+
+def find_play_again_button(emulator) -> tuple[int, int] | None:
+    """Find the yellow "Play Again" button on the 1v1 result screen.
+
+    Pixel fingerprint first (fast, returns the button centre), then a template
+    match restricted to the bottom button bar (top-left + centre offset).
+    """
+    iar = emulator.screenshot()
+    if iar is None:
+        return None
+
+    if play_again_pixels_match(iar):
+        return PLAY_AGAIN_BUTTON_COORD
+
+    coord = find_image(iar, "play_again_button", tolerance=0.85, subcrop=POST_BATTLE_BUTTON_BAR_SUBCROP)
+    if coord is not None:
+        return (coord[0] + PLAY_AGAIN_TEMPLATE_CLICK_OFFSET[0], coord[1] + PLAY_AGAIN_TEMPLATE_CLICK_OFFSET[1])
 
     return None
 
