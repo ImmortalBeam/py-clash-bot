@@ -13,6 +13,7 @@ import numpy
 from pyclashbot.bot.coords import (
     MORE_CLAN_CHAT_CARD_OPTIONS_SUBCROP,
     POST_BATTLE_BUTTON_BAR_SUBCROP,
+    RESULT_DEFEAT_BANNER_SUBCROP,
     RESULT_VICTORY_BANNER_SUBCROP,
 )
 from pyclashbot.detection.image_rec import (
@@ -225,9 +226,20 @@ _RESULT_VICTORY_PIXELS: tuple[tuple[int, int, int, int, int], ...] = (
     (209, 262, 102, 255, 255),
 )
 
-# Not calibrated yet: needs a defeat result-screen capture. Left empty on purpose;
-# an empty fingerprint is never matched (see check_if_result_screen_is_victory).
-_RESULT_DEFEAT_PIXELS: tuple[tuple[int, int, int, int, int], ...] = ()
+# Pink "WINNER!" label drawn above the opponent's crowns on a defeat
+# (tests/fixtures/result_screen_defeat.png); absent on a victory and on the main menu.
+_RESULT_DEFEAT_PIXELS: tuple[tuple[int, int, int, int, int], ...] = (
+    (166, 66, 255, 204, 255),
+    (172, 68, 255, 204, 255),
+    (178, 68, 255, 204, 255),
+    (196, 68, 255, 204, 255),
+    (202, 68, 255, 204, 255),
+    (208, 68, 255, 204, 255),
+    (238, 68, 255, 204, 255),
+    (244, 68, 255, 204, 255),
+    (202, 74, 255, 204, 255),
+    (208, 74, 255, 204, 255),
+)
 
 
 def play_again_pixels_match(iar) -> bool:
@@ -261,6 +273,8 @@ def check_if_result_screen_is_victory(emulator) -> bool | None:
     if find_image(iar, "result_victory_banner", tolerance=0.85, subcrop=RESULT_VICTORY_BANNER_SUBCROP) is not None:
         return True
     if _RESULT_DEFEAT_PIXELS and _war_boot_pixels_match(iar, _RESULT_DEFEAT_PIXELS):
+        return False
+    if find_image(iar, "result_defeat_banner", tolerance=0.85, subcrop=RESULT_DEFEAT_BANNER_SUBCROP) is not None:
         return False
     return None
 
