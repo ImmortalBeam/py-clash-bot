@@ -10,7 +10,11 @@ This module is a leaf: the only pyclashbot.bot module it imports from is
 
 import numpy
 
-from pyclashbot.bot.coords import MORE_CLAN_CHAT_CARD_OPTIONS_SUBCROP
+from pyclashbot.bot.coords import (
+    MORE_CLAN_CHAT_CARD_OPTIONS_SUBCROP,
+    POST_BATTLE_BUTTON_BAR_SUBCROP,
+    RESULT_VICTORY_BANNER_SUBCROP,
+)
 from pyclashbot.detection.image_rec import (
     all_pixels_are_equal,
     check_line_for_color,
@@ -192,6 +196,73 @@ ELIXIR_COORDS = [
     [613, 364],
 ]
 ELIXIR_COLOR = [240, 137, 244]
+
+
+# (x, y, r, g, b) sampled on the yellow "Play Again" button of the 1v1 result screen
+# (tests/fixtures/result_screen_victory.png). Matched with _war_boot_pixels_match,
+# which flips the BGR screenshot to RGB (tol 25).
+_PLAY_AGAIN_BUTTON_PIXELS: tuple[tuple[int, int, int, int, int], ...] = (
+    (115, 565, 255, 200, 75),
+    (190, 565, 255, 200, 75),
+    (120, 575, 255, 190, 43),
+    (190, 575, 255, 190, 43),
+    (155, 560, 255, 190, 43),
+    (180, 585, 255, 190, 43),
+    (155, 592, 255, 145, 12),
+)
+
+# Cyan "WINNER!" label drawn above the player's own crowns on a victory.
+_RESULT_VICTORY_PIXELS: tuple[tuple[int, int, int, int, int], ...] = (
+    (168, 258, 102, 255, 255),
+    (180, 258, 102, 255, 255),
+    (192, 258, 102, 255, 255),
+    (198, 258, 102, 255, 255),
+    (216, 258, 102, 255, 255),
+    (222, 258, 102, 255, 255),
+    (240, 258, 102, 255, 255),
+    (209, 252, 102, 255, 255),
+    (209, 256, 102, 255, 255),
+    (209, 262, 102, 255, 255),
+)
+
+# Not calibrated yet: needs a defeat result-screen capture. Left empty on purpose;
+# an empty fingerprint is never matched (see check_if_result_screen_is_victory).
+_RESULT_DEFEAT_PIXELS: tuple[tuple[int, int, int, int, int], ...] = ()
+
+
+def play_again_pixels_match(iar) -> bool:
+    """True when the Play Again button fingerprint matches the BGR screenshot `iar`."""
+    if not _PLAY_AGAIN_BUTTON_PIXELS:
+        return False
+    return _war_boot_pixels_match(iar, _PLAY_AGAIN_BUTTON_PIXELS)
+
+
+def check_for_play_again_button(emulator) -> bool:
+    """Checks for the yellow "Play Again" button on the 1v1 result screen."""
+    iar = emulator.screenshot()
+    if iar is None:
+        return False
+    if play_again_pixels_match(iar):
+        return True
+    return find_image(iar, "play_again_button", tolerance=0.85, subcrop=POST_BATTLE_BUTTON_BAR_SUBCROP) is not None
+
+
+def check_if_result_screen_is_victory(emulator) -> bool | None:
+    """Read the outcome off the 1v1 result screen.
+
+    Returns True on a detected victory, False on a detected defeat, and None when
+    neither fingerprint matches (not on the result screen, draw, or unknown palette).
+    """
+    iar = emulator.screenshot()
+    if iar is None:
+        return None
+    if _RESULT_VICTORY_PIXELS and _war_boot_pixels_match(iar, _RESULT_VICTORY_PIXELS):
+        return True
+    if find_image(iar, "result_victory_banner", tolerance=0.85, subcrop=RESULT_VICTORY_BANNER_SUBCROP) is not None:
+        return True
+    if _RESULT_DEFEAT_PIXELS and _war_boot_pixels_match(iar, _RESULT_DEFEAT_PIXELS):
+        return False
+    return None
 
 
 def count_elixir(emulator, elixir_count) -> bool:
