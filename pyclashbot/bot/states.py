@@ -10,6 +10,7 @@ from pyclashbot.bot.deck import randomize_deck_state, select_deck_state
 from pyclashbot.bot.fight import (
     do_fight_state,
     end_fight_state,
+    play_again_state,
     start_fight,
 )
 from pyclashbot.bot.nav import select_mode
@@ -52,6 +53,18 @@ def handle_state_failure(logger: Logger, state_name: str, function_name: str, er
 
 mode_used_in_1v1 = None
 fight_mode_cycle_index = 0
+# Consecutive Play Again presses since the last main-menu round trip.
+play_again_streak = 0
+
+
+def play_again_budget(job_list) -> int:
+    """Max consecutive Play Again presses allowed by the user's settings (0 = off)."""
+    if not job_list.get(UIField.PLAY_AGAIN_USER_TOGGLE.value, False):
+        return 0
+    try:
+        return max(0, int(job_list.get(UIField.MAX_PLAY_AGAIN_SELECTION.value, 0)))
+    except (TypeError, ValueError):
+        return 0
 
 
 def any_fight_mode_enabled(job_list) -> bool:
@@ -224,6 +237,7 @@ class StateOrder:
             "start_fight",
             "1v1_fight",
             "2v2_fight",
+            "play_again",
             "end_fight",
         ]
 
@@ -261,7 +275,7 @@ def state_tree(
     state_order: StateOrder,
 ) -> str:
     """Method to handle and loop between the various states of the bot"""
-    global mode_used_in_1v1, fight_mode_cycle_index  # noqa: PLW0602
+    global mode_used_in_1v1, fight_mode_cycle_index, play_again_streak  # noqa: PLW0602
     logger.log(f'Set the current state to "{state}"')
     logger.set_current_state(state, console=state not in QUIET_CONSOLE_STATES)
     time.sleep(0.1)
@@ -455,6 +469,9 @@ def state_tree(
         return handle_state_failure(logger, "war", "war_state")
 
     if state == "select_battle_mode":
+        # A fresh loop (or a restart) always passes here: drop any stale Play Again streak.
+        play_again_streak = 0
+
         # Get all enabled fight modes
         enabled_modes = []
         if job_list.get(UIField.CLASSIC_1V1_USER_TOGGLE, False):
@@ -555,6 +572,32 @@ def state_tree(
         ):
             return handle_state_failure(logger, "2v2_fight", "do_fight_state", "2v2 fight failed")
 
+        return state_order.next_state(state)
+
+    if state == "play_again":
+        budget = play_again_budget(job_list)
+        if mode_used_in_1v1 not in ["Classic 1v1", "Trophy Road"] or budget == 0:
+            play_again_streak = 0
+            return state_order.next_state(state)
+
+        if play_again_streak >= budget:
+            logger.change_status(f"Played {play_again_streak} in a row — returning to main menu for other jobs")
+            play_again_streak = 0
+            return state_order.next_state(state)
+
+        outcome = play_again_state(emulator, logger, job_list[UIField.DISABLE_WIN_TRACK_TOGGLE])
+
+        if outcome == "next_fight":
+            play_again_streak += 1
+            logger.change_status(f"Play Again {play_again_streak}/{budget}")
+            return "1v1_fight"
+
+        play_again_streak = 0
+        if outcome == "main_menu":
+            # Outcome already recorded on the result screen; skip end_fight's own check.
+            return state_order.next_state("end_fight")
+        if outcome == "restart":
+            return handle_state_failure(logger, "play_again", "get_to_main_after_fight")
         return state_order.next_state(state)
 
     if state == "end_fight":
