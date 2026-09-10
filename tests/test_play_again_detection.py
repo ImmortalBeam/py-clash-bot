@@ -18,6 +18,7 @@ from pyclashbot.bot.state_detect import check_for_play_again_button, check_if_re
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = REPO_ROOT / "tests" / "fixtures"
 VICTORY = FIXTURES / "result_screen_victory.png"
+DEFEAT = FIXTURES / "result_screen_defeat.png"
 MAIN_MENU = FIXTURES / "main_menu_left_column_icons.png"
 
 
@@ -77,3 +78,23 @@ def test_play_again_template_fallback_returns_button_centre(monkeypatch) -> None
     coord = find_play_again_button(_load(VICTORY))
     assert coord is not None
     assert _distance(coord, PLAY_AGAIN_BUTTON_COORD) <= 15
+
+
+def test_defeat_detected_on_losing_result_screen() -> None:
+    assert check_if_result_screen_is_victory(_load(DEFEAT)) is False
+
+
+def test_play_again_button_found_on_losing_result_screen() -> None:
+    coord = find_play_again_button(_load(DEFEAT))
+    assert coord is not None
+    assert _distance(coord, PLAY_AGAIN_BUTTON_COORD) <= 15
+
+
+def test_defeat_template_fallback(monkeypatch) -> None:
+    """With the pixel fingerprints disabled, the banner templates still decide the result."""
+    from pyclashbot.bot import state_detect
+
+    monkeypatch.setattr(state_detect, "_RESULT_VICTORY_PIXELS", ())
+    monkeypatch.setattr(state_detect, "_RESULT_DEFEAT_PIXELS", ())
+    assert check_if_result_screen_is_victory(_load(DEFEAT)) is False
+    assert check_if_result_screen_is_victory(_load(VICTORY)) is True

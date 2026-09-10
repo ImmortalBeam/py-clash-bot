@@ -183,3 +183,5 @@ POST_BATTLE_BUTTON_BAR_SUBCROP = (0, 540, 419, 610)
 PLAY_AGAIN_TEMPLATE_CLICK_OFFSET = (44, 18)
 # Band holding the "WINNER!" label above the bottom (own) crowns on a victory.
 RESULT_VICTORY_BANNER_SUBCROP = (120, 235, 300, 285)
+# Band holding the "WINNER!" label above the top (opponent) crowns on a defeat.
+RESULT_DEFEAT_BANNER_SUBCROP = (120, 45, 300, 95)
