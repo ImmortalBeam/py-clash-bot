@@ -103,6 +103,9 @@ line-length = 120
 
 [tool.ty.environment]
 python-version = "3.12"
+# CI type-checks on ubuntu; pin the platform so local runs on Windows/macOS see the
+# same diagnostics (the platform-gated `# ty: ignore` comments assume a Linux host).
+python-platform = "linux"
 
 [tool.ty.analysis]
 # Build-time deps used by scripts/ live in the `build` dependency group
