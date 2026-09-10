@@ -38,6 +38,8 @@ class UIField(StrEnum):
     CLASSIC_1V1_USER_TOGGLE = "classic_1v1_user_toggle"
     CLASSIC_2V2_USER_TOGGLE = "classic_2v2_user_toggle"
     TROPHY_ROAD_USER_TOGGLE = "trophy_road_user_toggle"
+    PLAY_AGAIN_USER_TOGGLE = "play_again_user_toggle"
+    MAX_PLAY_AGAIN_SELECTION = "max_play_again_selection"
     CARD_UPGRADE_USER_TOGGLE = "card_upgrade_user_toggle"
     UPGRADE_PRINCESS_USER_TOGGLE = "upgrade_princess_user_toggle"
     RANDOM_DECKS_USER_TOGGLE = "random_decks_user_toggle"
