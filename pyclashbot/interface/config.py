@@ -161,7 +161,7 @@ JOBS = [
     ),
     JobConfig(
         UIField.PLAY_AGAIN_USER_TOGGLE,
-        "🔁 Play again",
+        "↻ Play again",
         default=False,
         tooltip=(
             "After a Trophy Road or Classic 1v1 battle, press Play Again on the result screen "
