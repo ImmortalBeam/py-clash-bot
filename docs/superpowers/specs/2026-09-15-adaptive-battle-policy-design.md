@@ -47,7 +47,7 @@ Three units, each testable alone:
   2. **Follow-up** if a tank was played < 8 s ago in `push.lane` and `ours_their_half`/bridge shows it alive: roles `[support]`, zone `support_behind`, `min_elixir` 0.
   3. **Finish** if any enemy tower HP < 0.15 and a `big_spell` or `chip` is in hand: zone `spell_tower` / `chip`, lane of that tower.
   4. **Attack** if our half is clear and `elixir ≥ attack_threshold(mode)`: lane = weakest standing enemy tower (ties ⇒ our healthier side); roles `[tank, win_condition]`, zone `bridge`; records `PushMemory(lane, t)`.
-  5. **Chip** if our half is clear, `chip` in hand and `elixir ≥ 5`: weakest tower.
+  5. **Chip** if our half is clear, `chip` in hand, `elixir ≥ 7` and no push committed in the last 15 s: weakest tower.
   6. Otherwise **hold** (wait for elixir; re-evaluate every 0.5 s).
 - `attack_threshold(mode)`: `ahead` 9, `even` 8, `behind` 7; from 120 s (double elixir) subtract 1; last 30 s (from 150 s) and not ahead ⇒ 5 and roles `[tank, win_condition, support]`.
 - Spells never fire outside Defend (small) or Finish (big); Zap-style spam ends.

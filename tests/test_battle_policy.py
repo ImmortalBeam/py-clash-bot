@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pyclashbot.bot.battle_policy import (
     CHIP_MIN_ELIXIR,
+    PUSH_COOLDOWN_S,
     HandCard,
     PushMemory,
     attack_threshold,
@@ -106,3 +107,22 @@ def test_choose_slot_follows_role_order_then_avoids_recent() -> None:
     assert choose_slot(hand, ("tank", "support"), recent=[]) == hand[2]
     assert choose_slot(hand, ("support",), recent=[0]) == hand[1]
     assert choose_slot(hand, ("building",), recent=[]) is None
+
+
+def test_no_chip_right_after_a_push_even_with_elixir() -> None:
+    """Dumping a chip card on top of a push left the bot at 2 elixir for the counter-push."""
+    hand = [HandCard(0, "goblin_barrel", "chip"), HandCard(1, "musketeer", "support")]
+    recent_push = PushMemory("left", started_at=60.0 - 10.0)  # past the follow-up window, inside the cooldown
+    d = decide(state(elixir=CHIP_MIN_ELIXIR, elapsed=60.0), hand, recent_push)
+    assert d.kind == "hold"
+
+
+def test_chip_allowed_once_the_push_cooldown_has_passed() -> None:
+    hand = [HandCard(0, "goblin_barrel", "chip"), HandCard(1, "musketeer", "support")]
+    old_push = PushMemory("left", started_at=60.0 - PUSH_COOLDOWN_S - 1)
+    d = decide(state(elixir=CHIP_MIN_ELIXIR, elapsed=60.0), hand, old_push)
+    assert d.kind == "chip"
+
+
+def test_chip_needs_a_cushion_of_elixir() -> None:
+    assert CHIP_MIN_ELIXIR >= 7

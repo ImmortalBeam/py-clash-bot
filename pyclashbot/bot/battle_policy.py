@@ -13,7 +13,8 @@ FINISH_HP = 0.15
 ENDGAME_S = 120.0  # double elixir: one less elixir needed to commit
 LAST_SECONDS_S = 30.0
 MATCH_LENGTH_S = 180.0
-CHIP_MIN_ELIXIR = 5
+CHIP_MIN_ELIXIR = 7  # keep a cushion: a chip card must not leave us empty for the counter-push
+PUSH_COOLDOWN_S = 15.0  # no chip on top of a push we just committed to
 
 # PLAY_COORDS group -> role. Unknown groups (and "No group") are support.
 ROLE_OF_GROUP: dict[str, str] = {
@@ -114,7 +115,8 @@ def decide(state: BattleState, hand: list[HandCard], push: PushMemory | None) ->
             "attack", target, ("tank", "win_condition"), threshold, "bridge", f"{mode}: push {target} at {threshold}"
         )
 
-    if target is not None and state.elixir >= CHIP_MIN_ELIXIR and _has_role(hand, "chip"):
+    push_settled = push is None or state.elapsed - push.started_at > PUSH_COOLDOWN_S
+    if target is not None and push_settled and state.elixir >= CHIP_MIN_ELIXIR and _has_role(hand, "chip"):
         return Decision("chip", target, ("chip",), CHIP_MIN_ELIXIR, "chip", f"chip {target} tower")
 
     if target is not None and state.elixir >= threshold and _has_role(hand, "support"):
