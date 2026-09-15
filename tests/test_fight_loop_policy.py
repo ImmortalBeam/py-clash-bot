@@ -109,3 +109,34 @@ def test_play_decision_returns_none_when_no_card_fits(world) -> None:
     hand = [HandCard(0, "knight", "tank")]
     assert fight.play_decision(world["emulator"], world["logger"], decision, hand, 10.0, False, []) is None
     assert world["emulator"].clicks == []
+
+
+def test_sharp_tower_health_drop_triggers_a_defend(world) -> None:
+    """Match 9 of the second run: our tower fell from full to 31% with no enemy bar in the lane."""
+    states = iter([_state(3), _hp_state(3, our_R=1.0), _hp_state(3, our_R=0.8), _hp_state(3, our_R=0.8)])
+    last = {"s": _state(3)}
+
+    def read(_iar, _t):
+        try:
+            last["s"] = next(states)
+        except StopIteration:
+            pass
+        return last["s"]
+
+    world["monkeypatch"].setattr(fight, "read_battle_state", read)
+    seen = {}
+
+    def zone(zone_name, lane, group):
+        seen.update(zone=zone_name, lane=lane)
+        return (295, 340)
+
+    world["monkeypatch"].setattr(fight, "zone_play_coords", zone)
+
+    fight._fight_loop(world["emulator"], world["logger"], False)
+
+    assert seen == {"zone": "defense", "lane": "right"}
+    assert world["emulator"].clicks[0] == HAND_CARDS_COORDS[1]  # support card defends
+
+
+def _hp_state(elixir: int, **hp) -> BattleState:
+    return BattleState(elixir, (0, 0), (0, 0), (0, 0), {**FULL, **hp}, 30.0)

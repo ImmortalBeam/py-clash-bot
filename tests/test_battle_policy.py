@@ -140,3 +140,11 @@ def test_no_finish_in_the_opening_seconds() -> None:
     assert d.kind != "finish"
     d = decide(state(elixir=4, hp={**FULL, "their_L": 0.05}, elapsed=FINISH_MIN_ELAPSED_S + 1), hand, None)
     assert d.kind == "finish"
+
+
+def test_tower_under_fire_without_visible_enemies_is_defended() -> None:
+    """Balloons and spells hurt a tower with little or no health bar on our half."""
+    d = decide(state(elixir=3), HAND, None, under_fire="left")
+    assert d.kind == "defend" and d.lane == "left"
+    d = decide(state(elixir=3), HAND, None, under_fire=None)
+    assert d.kind == "hold"

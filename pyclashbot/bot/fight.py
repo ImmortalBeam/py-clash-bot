@@ -12,6 +12,7 @@ from pyclashbot.bot.battle_policy import (
     choose_slot,
     decide,
     role_for_group,
+    under_fire_lane,
 )
 from pyclashbot.bot.battle_state import read_battle_state
 from pyclashbot.bot.card_detection import (
@@ -515,6 +516,7 @@ def _fight_loop(
     push: PushMemory | None = None
     recent: list[int] = []
     ability_available_since: float | None = None
+    prev_tower_hp: dict[str, float | None] | None = None
 
     while True:
         if not check_for_in_battle_with_delay(emulator):
@@ -543,7 +545,9 @@ def _fight_loop(
             ability_available_since = None
 
         hand = read_hand(emulator)
-        decision = decide(state, hand, push)
+        under_fire = under_fire_lane(prev_tower_hp, state.tower_hp)
+        prev_tower_hp = state.tower_hp
+        decision = decide(state, hand, push, under_fire)
 
         if decision.kind == "hold":
             if time.time() - hold_since > HOLD_TIMEOUT_S and hand:

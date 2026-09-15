@@ -14,6 +14,7 @@ FINISH_MIN_ELAPSED_S = 20.0  # a tower cannot be near death this early; treat lo
 ENDGAME_S = 120.0  # double elixir: one less elixir needed to commit
 LAST_SECONDS_S = 30.0
 MATCH_LENGTH_S = 180.0
+TOWER_UNDER_FIRE_DROP = 0.08  # health lost between two ticks that means something is hitting the tower
 CHIP_MIN_ELIXIR = 7  # keep a cushion: a chip card must not leave us empty for the counter-push
 PUSH_COOLDOWN_S = 15.0  # no chip on top of a push we just committed to
 
@@ -89,6 +90,23 @@ def _has_role(hand: list[HandCard], *roles: str) -> bool:
     return any(card.role in roles for card in hand)
 
 
+def under_fire_lane(prev_hp: dict[str, float | None] | None, hp: dict[str, float | None]) -> str | None:
+    """Lane whose princess tower lost a chunk of health since the previous tick.
+
+    Catches attackers with little or no health bar on our half (Balloon, spells).
+    """
+    if prev_hp is None:
+        return None
+    worst_lane, worst_drop = None, TOWER_UNDER_FIRE_DROP
+    for lane, key in (("left", "our_L"), ("right", "our_R")):
+        before, now = prev_hp.get(key), hp.get(key)
+        if before is None or now is None:
+            continue
+        if before - now >= worst_drop:
+            worst_lane, worst_drop = lane, before - now
+    return worst_lane
+
+
 def attack_lane(state: BattleState) -> str:
     """Lane to push: the weakest standing enemy princess tower, or, once both are down,
     the king through the lane where our own tower still protects the path."""
@@ -98,14 +116,15 @@ def attack_lane(state: BattleState) -> str:
     return "left" if state.tower_hp.get("our_L") is not None else "right"
 
 
-def decide(state: BattleState, hand: list[HandCard], push: PushMemory | None) -> Decision:
+def decide(
+    state: BattleState, hand: list[HandCard], push: PushMemory | None, under_fire: str | None = None
+) -> Decision:
     mode = game_mode(state)
 
-    lane = state.threatened_lane()
+    lane = state.threatened_lane() or under_fire
     if lane is not None:
-        return Decision(
-            "defend", lane, ("building", "support", "tank", "small_spell"), 0, "defense", f"enemy on our {lane}"
-        )
+        why = f"enemy on our {lane}" if state.threatened_lane() else f"our {lane} tower under fire"
+        return Decision("defend", lane, ("building", "support", "tank", "small_spell"), 0, "defense", why)
 
     if push is not None and state.elapsed - push.started_at <= FOLLOW_UP_WINDOW_S and _has_role(hand, "support"):
         return Decision("follow_up", push.lane, ("support",), 0, "support_behind", f"support the {push.lane} push")
