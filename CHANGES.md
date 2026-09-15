@@ -17,6 +17,7 @@ Based on py-clash-bot upstream (`34d11e5`). All changes are in `pyclashbot/` and
 - Spells are no longer thrown at the tower whenever affordable: small spells only defend, big spells only finish.
 - The old "battle too active" override, which fired on almost every play because it compared unsigned bytes and wrapped, is gone along with the elixir-phase tables and busier-lane placement. Random card plays and war battles are unchanged.
 - Baseline before this change (2026-09-15, six Trophy Road matches, forward placement only): 2 wins, 4 losses.
+- First policy run (2026-09-15, ten Trophy Road matches, before the attacker-on-tower, chip-cushion and king-attack fixes): 6 wins, 4 losses.
 
 ## Changed: forward troop placement
 
