@@ -1,17 +1,20 @@
 """random module for randomizing fight plays"""
 
-import collections
 import random
 import time
 from typing import Literal
 
+from pyclashbot.bot.battle_policy import Decision, HandCard, PushMemory, choose_slot, decide, role_for_group
+from pyclashbot.bot.battle_state import read_battle_state
 from pyclashbot.bot.card_detection import (
     check_which_cards_are_available,
     create_default_bridge_iar,
-    get_play_coords_for_card,
+    get_card_group,
+    identify_hand_cards,
     is_hero_champion_ability_visible,
     switch_side,
     trigger_hero_champion_ability,
+    zone_play_coords,
 )
 from pyclashbot.bot.coords import (
     CLOSE_BATTLE_LOG_BUTTON,
@@ -43,7 +46,6 @@ from pyclashbot.bot.state_detect import (
     check_for_reward_choice_screen,
     check_for_trophy_reward_menu,
     check_if_battle_has_ended,
-    check_if_in_battle,
     check_if_on_clash_main_menu,
     check_if_result_screen_is_victory,
     check_pixels_for_win_in_battle_log,
@@ -54,6 +56,9 @@ from pyclashbot.utils.versioning import __version__
 
 ELIXIR_WAIT_TIMEOUT = 40  # too high but someone got errors with that so idk
 ABILITY_TRIGGER_DELAY_S = 3
+POLICY_TICK_S = 0.5  # how often the policy re-reads the screen while holding
+HOLD_TIMEOUT_S = 40.0  # give up holding (assume the elixir bar is unreadable) and play anyway
+DETECTION_LOST_LIMIT = 4
 
 
 def _maybe_start_fight_recording(
@@ -450,237 +455,114 @@ def check_if_previous_game_was_win(
 
 # main fight loops
 
-# Initialize a deque with a maximum length of 3 to store the last three chosen cards
-last_three_cards = collections.deque(maxlen=3)
+
+def read_hand(emulator) -> list[HandCard]:
+    """Affordable hand slots with their identified card and policy role."""
+    hand: list[HandCard] = []
+    for slot in check_which_cards_are_available(emulator):
+        card_id = identify_hand_cards(emulator, slot) or "unknown"
+        hand.append(HandCard(slot, card_id, role_for_group(get_card_group(card_id))))
+    return hand
 
 
-def select_card_index(card_indices, last_three_cards):
-    if not card_indices:
-        raise ValueError("card_indices cannot be empty")
-
-    # First preference: Cards not in the last_three_cards queue
-    preferred_cards = [index for index in card_indices if index not in last_three_cards]
-
-    # Second preference: Cards not among the last two added to the queue
-    if not preferred_cards and len(last_three_cards) == 3:
-        preferred_cards = [index for index in card_indices if index not in list(last_three_cards)[-2:]]
-
-    # Third preference: Any card except the most recently added one
-    if not preferred_cards and last_three_cards:
-        preferred_cards = [index for index in card_indices if index != last_three_cards[-1]]
-
-    # Fallback: If all else fails, consider all cards
-    if not preferred_cards:
-        preferred_cards = card_indices
-
-    return random.choice(preferred_cards)
-
-
-def play_a_card(emulator, logger, recording_flag: bool, battle_strategy: "BattleStrategy") -> bool:
-    print("\n")
-
-    # check which cards are available
-    logger.change_status("Looking at which cards are available")
-    available_card_check_start_time = time.time()
-    card_indices = check_which_cards_are_available(emulator, check_side=True)
-
-    if not card_indices:
-        logger.change_status("No cards ready yet...")
-        return False
-
-    available_card_check_time_taken = str(
-        time.time() - available_card_check_start_time,
-    )[:3]
-
-    logger.change_status(
-        f"These cards are available: {card_indices} ({available_card_check_time_taken}s)",
-    )
-
-    card_index = select_card_index(card_indices, last_three_cards)
-    if card_index not in last_three_cards:
-        last_three_cards.append(card_index)
-    logger.change_status(f"Choosing this card index: {card_index}")
-
-    # get a coord based on the selected side
-    play_coord_calculation_start_time = time.time()
-    card_id, play_coord = get_play_coords_for_card(emulator, logger, card_index, battle_strategy.get_elapsed_time())
-    play_coord_calculation_time_taken = str(
-        time.time() - play_coord_calculation_start_time,
-    )[:3]
-
-    logger.change_status(
-        f"Calculated play for: {card_id} at {play_coord} ({play_coord_calculation_time_taken}s)",
-    )
-
-    # click the card index
-    click_and_play_card_start_time = time.time()
-    if None in [HAND_CARDS_COORDS, card_index]:
-        logger.change_status("Non-fatal error: card index is None")
-        return False
-
-    emulator.click(HAND_CARDS_COORDS[card_index][0], HAND_CARDS_COORDS[card_index][1])
-
-    # click the play coord
-    if play_coord is None:
-        logger.change_status("Non-fatal error: play coordinates are None")
-        return False
-
-    emulator.click(play_coord[0], play_coord[1])
-    click_and_play_card_time_taken = str(time.time() - click_and_play_card_start_time)[:3]
-    if recording_flag:
-        log_play(card_index, play_coord[0], play_coord[1], battle_strategy.get_elapsed_time())
-
-    logger.change_status(f"Made the play {click_and_play_card_time_taken}s")
+def play_decision(
+    emulator,
+    logger: Logger,
+    decision: Decision,
+    hand: list[HandCard],
+    elapsed: float,
+    recording_flag: bool,
+    recent: list[int],
+) -> HandCard | None:
+    """Tap the first hand card matching the decision's roles at the decision's zone."""
+    card = choose_slot(hand, decision.roles, recent)
+    if card is None or decision.lane is None:
+        return None
+    coord = zone_play_coords(decision.zone, decision.lane, get_card_group(card.card_id))
+    if coord is None:
+        return None
+    emulator.click(HAND_CARDS_COORDS[card.slot][0], HAND_CARDS_COORDS[card.slot][1])
+    emulator.click(coord[0], coord[1])
+    logger.change_status(f"{decision.kind} {decision.lane}: {card.card_id} at {coord} ({decision.reason})")
     logger.add_card_played()
-
+    if recording_flag:
+        log_play(card.slot, coord[0], coord[1], elapsed)
+    recent.append(card.slot)
+    del recent[:-3]
     if random.randint(0, 9) == 1:
         send_emote(emulator, logger)
-    return True
-
-
-_PHASE_STRATEGIES = {
-    "early": [0, 0, 0, 0, 0.3, 0.3, 0.4],  # 0-7s: Conservative, wait for more elixir
-    "single": [0.05, 0.05, 0.1, 0.15, 0.15, 0.3, 0.2],  # 7-90s: Balanced distribution
-    "double": [0.05, 0.05, 0.1, 0.15, 0.25, 0.3, 0.1],  # 90-200s: Favor 7-8 elixir
-    "triple": [0.05, 0.05, 0.1, 0.1, 0.3, 0.4, 0],  # 200s+: Heavy favor 7-8, never 9
-}
-
-_PHASE_THRESHOLDS_1V1 = {
-    "early": (6000, 9000),
-    "single": (6000, 9000),
-    "double": (7000, 10000),
-    "triple": (8000, 11000),
-}
-
-_PHASE_THRESHOLDS_2V2 = {
-    "early": (7000, 13000),
-    "single": (7000, 14000),
-    "double": (8000, 15000),
-    "triple": (9000, 16000),
-}
-
-
-class BattleStrategy:
-    """Manages battle timing and elixir selection strategy.
-
-    Encapsulates the sophisticated elixir selection logic that changes
-    based on battle phase, eliminating the need for global variables.
-    """
-
-    def __init__(self, fight_mode: str = "Classic 1v1"):
-        self.start_time = None
-        self.elixir_amounts = [3, 4, 5, 6, 7, 8, 9]
-
-        is_2v2 = fight_mode == "Classic 2v2"
-        self.phase_strategies = _PHASE_STRATEGIES
-        self.phase_thresholds = _PHASE_THRESHOLDS_2V2 if is_2v2 else _PHASE_THRESHOLDS_1V1
-
-    def start_battle(self):
-        """Call when battle begins to start timing."""
-        self.start_time = time.time()
-
-    def get_elapsed_time(self):
-        """Get seconds elapsed since battle start."""
-        return time.time() - self.start_time if self.start_time else 0
-
-    def get_battle_phase(self):
-        """Determine current battle phase based on elapsed time."""
-        elapsed = self.get_elapsed_time()
-        if elapsed < 7:
-            return "early"
-        elif elapsed < 90:
-            return "single"
-        elif elapsed < 200:
-            return "double"
-        else:
-            return "triple"
-
-    def select_elixir_amount(self):
-        """Select elixir amount to wait for based on current battle phase."""
-        phase = self.get_battle_phase()
-        weights = self.phase_strategies[phase]
-        return random.choices(self.elixir_amounts, weights=weights, k=1)[0]
-
-    def get_thresholds(self):
-        """Get (WAIT_THRESHOLD, PLAY_THRESHOLD) for current battle phase."""
-        phase = self.get_battle_phase()
-        return self.phase_thresholds[phase]
+    return card
 
 
 def _fight_loop(
     emulator, logger: Logger, recording_flag: bool, fight_mode: str = "Classic 1v1", custom_path: str | None = None
 ) -> bool:
-    """Method for handling dynamically timed fight"""
+    """Read the battle, decide, act — until the battle ends."""
     create_default_bridge_iar(emulator)
     _maybe_start_fight_recording(emulator, logger, recording_flag, fight_mode, custom_path)
-    collections.deque(maxlen=3)
     prev_cards_played = logger.get_cards_played()
     battle_detection_lost_count = 0
-
-    # Initialize battle strategy and start timing
-    battle_strategy = BattleStrategy(fight_mode)
-    battle_strategy.start_battle()
+    start_time = time.time()
+    hold_since = start_time
+    push: PushMemory | None = None
+    recent: list[int] = []
+    ability_available_since: float | None = None
 
     while True:
         if not check_for_in_battle_with_delay(emulator):
             if check_if_battle_has_ended(emulator):
                 break
-
             battle_detection_lost_count += 1
-            logger.change_status(
-                f"Lost battle detection mid-fight ({battle_detection_lost_count}) — waiting it out",
-            )
-
-            # If we've lost detection several times in a row, assume the battle
-            # ended even if we couldn't confirm it (prevents infinite loops if UI changes).
-            if battle_detection_lost_count >= 4:
-                logger.change_status(
-                    "Lost battle detection repeatedly — assuming battle ended",
-                )
+            logger.change_status(f"Lost battle detection mid-fight ({battle_detection_lost_count}) — waiting it out")
+            if battle_detection_lost_count >= DETECTION_LOST_LIMIT:
+                logger.change_status("Lost battle detection repeatedly — assuming battle ended")
                 break
-
             time.sleep(1)
             continue
-
         battle_detection_lost_count = 0
-        # debug screenshot saving removed from production
 
-        # Get elixir amount and thresholds based on current battle phase
-        elixir_amount = battle_strategy.select_elixir_amount()
-        wait_threshold, play_threshold = battle_strategy.get_thresholds()
+        elapsed = time.time() - start_time
+        iar = emulator.screenshot()
+        state = read_battle_state(iar, elapsed)
 
-        wait_output = wait_for_elixir(
-            emulator,
-            logger,
-            elixir_amount,
-            wait_threshold,
-            play_threshold,
-            recording_flag,
-        )
+        if is_hero_champion_ability_visible(emulator):
+            if ability_available_since is None:
+                ability_available_since = time.time()
+            elif time.time() - ability_available_since >= ABILITY_TRIGGER_DELAY_S:
+                trigger_hero_champion_ability(emulator, logger)
+                ability_available_since = None
+        else:
+            ability_available_since = None
 
-        if wait_output == "restart":
-            logger.change_status("Failed while waiting for elixir")
-            return False
+        hand = read_hand(emulator)
+        decision = decide(state, hand, push)
 
-        if wait_output == "no battle":
-            logger.change_status("Not in battle anymore!")
-            break
+        if decision.kind == "hold":
+            if time.time() - hold_since > HOLD_TIMEOUT_S and hand:
+                logger.change_status("Held too long — playing the first affordable card")
+                decision = Decision(
+                    "attack",
+                    state.weakest_enemy_lane() or "left",
+                    tuple(card.role for card in hand),
+                    0,
+                    "bridge",
+                    "hold timeout",
+                )
+            else:
+                logger.change_status(f"Holding ({decision.reason}), elixir {state.elixir}")
+                time.sleep(POLICY_TICK_S)
+                continue
 
-        if not check_if_in_battle(emulator):
-            if check_if_battle_has_ended(emulator):
-                logger.change_status("Battle ended (confirmed)")
-                break
-
-            logger.change_status("Lost battle detection — continuing fight loop")
+        played = play_decision(emulator, logger, decision, hand, elapsed, recording_flag, recent)
+        hold_since = time.time()
+        if played is None:
+            time.sleep(POLICY_TICK_S)
             continue
-
-        play_start_time = time.time()
-        if play_a_card(emulator, logger, recording_flag, battle_strategy) is False:
-            logger.change_status("Failed to play a card, retrying...")
-        # play_time_taken = str(time.time() - play_start_time)[:4]
-        logger.change_status(
-            f"Made a play in {str(time.time() - play_start_time)[:4]}s",
-        )
+        if decision.kind == "attack" and played.role in ("tank", "win_condition"):
+            push = PushMemory(decision.lane or "left", elapsed)
+        elif decision.kind in ("follow_up", "defend"):
+            push = None
+        time.sleep(1.0)
 
     # Fight over: freeze capture so the pack excludes post-fight nav (manifest/outcome written later).
     stop_fight_capture()
