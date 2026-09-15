@@ -19,6 +19,8 @@ The bot picks a **play group** for each detected card, then taps a random point 
 | `bridge_line` | Bridge foot (tanks, heavies) |
 | `bridge_rush` | In front of bridge |
 | `back_support` | Just behind the bridge, in lane |
+| `defense` | In front of our princess tower, in lane (policy: defend) |
+| `spell_defense` | Lane centre in front of our tower (policy: defensive spell) |
 | `defense_building` | Back-field buildings |
 | `siege_building` | Mortar / X-Bow |
 | `center_spell` | Center behind river |

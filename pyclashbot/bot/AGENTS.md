@@ -24,6 +24,7 @@ User-facing progress goes through `logger.change_status()` (updates the live sta
 
 ## Gotchas
 
+- `battle_state.py` (frame → `BattleState`) and `battle_policy.py` (`BattleState` + hand → `Decision`) are pure leaf modules; `fight._fight_loop` is read → `decide` → `play_decision`. Tune thresholds in `battle_policy.py` constants, geometry in `coords.py`, drop points in `PLAY_COORDS` via `zone_play_coords`.
 - `states.py` carries **module-level globals** (`mode_used_in_1v1`, `fight_mode_cycle_index`, `play_again_streak`) set in one state and read in later ones; if `mode_used_in_1v1` is `None`, fight/cycle states silently skip. The `play_again` state (after `2v2_fight`) may jump **backwards** to `1v1_fight` up to N times (`play_again_budget`), then falls through to `end_fight`; `select_battle_mode` resets the streak.
 - `StateHistory` throttles expensive states (upgrade, card_mastery) by randomized time increments — a manually-triggered state won't re-run until its increment elapses.
 - Card availability and deck tabs use **image recognition** (`card_detection.py`, `find_image`); elixir/battle/upgrade checks use **single-pixel** sampling — an off-by-one Y breaks them.

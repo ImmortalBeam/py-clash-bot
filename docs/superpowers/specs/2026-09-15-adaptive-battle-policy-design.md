@@ -40,7 +40,7 @@ Three units, each testable alone:
 
 ### 3.2 `pyclashbot/bot/battle_policy.py` (new, pure)
 - Roles derived from the existing `PLAY_COORDS` groups: `tank` (bridge_line), `win_condition` (bridge_rush), `chip` (goblin_barrel, miner, graveyard, goblin_drill), `support` (back_support, king_lane, princess, spirit), `building` (defense_building, siege_building), `small_spell` (reactive_spell, lane_spell, center_spell, tornado), `big_spell` (large_spell, rocket). Unknown card ⇒ `support`.
-- `Mode`: `ahead` / `even` / `behind` from standing tower counts (`tower_hp is None` ⇒ destroyed); `endgame` flag when `elapsed > 150 s`.
+- `Mode`: `ahead` / `even` / `behind` from standing tower counts (`tower_hp is None` ⇒ destroyed); `endgame` flag when `elapsed >= 120 s` (double elixir).
 - `Decision(kind, lane, roles, min_elixir, zone, reason)` where `kind ∈ {defend, attack, follow_up, chip, finish, hold}`.
 - `decide(state, hand: list[HandCard], mode, push: PushMemory | None) -> Decision`, evaluated in this order:
   1. **Defend** if `enemy_our_half[lane] ≥ ENEMY_PRESENCE_MIN (25)`: lane = the fuller lane; roles `[building, support, tank, small_spell]`; `min_elixir` = 0 (play the first affordable); zone `defense`.
@@ -49,7 +49,7 @@ Three units, each testable alone:
   4. **Attack** if our half is clear and `elixir ≥ attack_threshold(mode)`: lane = weakest standing enemy tower (ties ⇒ our healthier side); roles `[tank, win_condition]`, zone `bridge`; records `PushMemory(lane, t)`.
   5. **Chip** if our half is clear, `chip` in hand and `elixir ≥ 5`: weakest tower.
   6. Otherwise **hold** (wait for elixir; re-evaluate every 0.5 s).
-- `attack_threshold(mode)`: `ahead` 9, `even` 8, `behind` 7; after 150 s subtract 1; last 30 s and not ahead ⇒ 5 and roles `[tank, win_condition, support]`.
+- `attack_threshold(mode)`: `ahead` 9, `even` 8, `behind` 7; from 120 s (double elixir) subtract 1; last 30 s (from 150 s) and not ahead ⇒ 5 and roles `[tank, win_condition, support]`.
 - Spells never fire outside Defend (small) or Finish (big); Zap-style spam ends.
 - Card selection: first hand slot whose role is in `roles`, in role order, tie-broken by the existing anti-repeat deque.
 

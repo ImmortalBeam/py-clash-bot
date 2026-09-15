@@ -10,6 +10,14 @@ Based on py-clash-bot upstream (`34d11e5`). All changes are in `pyclashbot/` and
 - Detection uses pixel fingerprints with template-image fallbacks for the Play Again button and the WINNER! label on both win and loss screens. Popups on the result screen (trophy reward, reward choice) are dismissed first. If the button never appears, the bot falls back to the old OK path.
 - Implemented as a new `play_again` state in the state machine, so failures are reported under their own state name.
 
+## New: adaptive battle policy
+
+- The fight loop now reads the battle every half second: elixir, enemy troops on our half per lane (red health bars), our troops on their half, and all four princess-tower healths (`pyclashbot/bot/battle_state.py`).
+- A pure policy (`pyclashbot/bot/battle_policy.py`) turns that into one decision: defend the threatened lane first with the cheapest fitting card in front of the tower; follow a tank with support within 8 s; finish a tower under 15% with a big spell or chip card; otherwise push the weakest enemy tower with a tank at the bridge once elixir reaches a score-dependent threshold (ahead 9, even 8, behind 7, one less in double elixir, 5 in the last 30 s when not ahead); chip at 5; else hold.
+- Spells are no longer thrown at the tower whenever affordable: small spells only defend, big spells only finish.
+- The old "battle too active" override, which fired on almost every play because it compared unsigned bytes and wrapped, is gone along with the elixir-phase tables and busier-lane placement. Random card plays and war battles are unchanged.
+- Baseline before this change (2026-09-15, six Trophy Road matches, forward placement only): 2 wins, 4 losses.
+
 ## Changed: forward troop placement
 
 - Tanks (`bridge_line`) now start at the bridge foot instead of mid-field; support troops (`back_support`, `king_lane`) start one to two tiles behind the bridge instead of beside the king tower; unrecognised cards fall back to the same band instead of the back field. The bot has no tank-then-support sequencing, so deep plays only cost walking time. Spells, buildings, spirits and tunnelling cards are unchanged. `docs/placement-zones.md` updated.
