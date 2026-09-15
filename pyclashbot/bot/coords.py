@@ -192,16 +192,20 @@ RESULT_DEFEAT_BANNER_SUBCROP = (120, 45, 300, 95)
 ARENA_LTRB = (55, 60, 365, 470)
 LANE_SPLIT_X = 209
 RIVER_Y = 283
-# Tower footprints (x1, y1, x2, y2) excluded from unit-bar counting: enemy princess L/R,
-# enemy king, our princess L/R, our king (extended upward to cover its health bar).
-TOWER_BOXES = (
+# Tower footprints (x1, y1, x2, y2). Each unit-bar mask excludes only the towers of its
+# own colour (enemy red art for the enemy mask, our blue art for ours), so attackers
+# standing on a tower are still counted. Our king box extends upward over its bar.
+ENEMY_TOWER_BOXES = (
     (70, 75, 145, 155),
     (270, 75, 345, 155),
     (165, 15, 255, 80),
+)
+OUR_TOWER_BOXES = (
     (70, 355, 145, 432),
     (270, 355, 345, 432),
     (165, 400, 255, 482),
 )
+TOWER_BOXES = ENEMY_TOWER_BOXES + OUR_TOWER_BOXES
 # Princess-tower health bars: (row y, x0, x1) of the filled bar at full health.
 TOWER_HP_BARS = {
     "their_L": (94, 103, 141),
@@ -216,6 +220,9 @@ TOWER_BADGE_BOXES = {
     "our_L": (86, 386, 102, 402),
     "our_R": (273, 386, 289, 402),
 }
-ENEMY_PRESENCE_MIN = 25  # unit-bar pixels on our half that count as a push
+# The emote picker (a row of white boxes) covers this band of our half while open.
+EMOTE_PICKER_BAND = (60, 355, 360, 440)
+EMOTE_PICKER_WHITE_MIN = 0.06  # near-white fraction of the band: ~0.12 open, <0.02 otherwise
+ENEMY_PRESENCE_MIN = 15  # unit-bar pixels on our half that count as a push (a lone unit ~25)
 TOWER_BAR_MIN_PIXELS = 4
 TOWER_BADGE_MIN_PIXELS = 6

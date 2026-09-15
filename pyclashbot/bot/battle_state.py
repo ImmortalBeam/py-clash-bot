@@ -12,13 +12,16 @@ import numpy as np
 
 from pyclashbot.bot.coords import (
     ARENA_LTRB,
+    EMOTE_PICKER_BAND,
+    EMOTE_PICKER_WHITE_MIN,
     ENEMY_PRESENCE_MIN,
+    ENEMY_TOWER_BOXES,
     LANE_SPLIT_X,
+    OUR_TOWER_BOXES,
     RIVER_Y,
     TOWER_BADGE_BOXES,
     TOWER_BADGE_MIN_PIXELS,
     TOWER_BAR_MIN_PIXELS,
-    TOWER_BOXES,
     TOWER_HP_BARS,
 )
 from pyclashbot.bot.state_detect import ELIXIR_COLOR, ELIXIR_COORDS
@@ -65,19 +68,38 @@ def count_elixir_pips(iar: np.ndarray) -> int:
     return count
 
 
+def emote_picker_open(iar: np.ndarray) -> bool:
+    """True while the bot's own emote menu (a row of white boxes) covers our half."""
+    x1, y1, x2, y2 = EMOTE_PICKER_BAND
+    band = iar[y1:y2, x1:x2]
+    return float((band.min(axis=2) > 235).mean()) >= EMOTE_PICKER_WHITE_MIN
+
+
+def _arena_keep(iar: np.ndarray, tower_boxes, picker_open: bool) -> np.ndarray:
+    keep = np.zeros(iar.shape[:2], dtype=bool)
+    left, top, right, bottom = ARENA_LTRB
+    keep[top:bottom, left:right] = True
+    for x1, y1, x2, y2 in tower_boxes:
+        keep[y1:y2, x1:x2] = False
+    if picker_open:
+        x1, y1, x2, y2 = EMOTE_PICKER_BAND
+        keep[y1:y2, x1:x2] = False
+    return keep
+
+
 def unit_bar_masks(iar: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Enemy (red) and friendly (blue) unit health-bar pixels inside the arena, towers excluded."""
+    """Enemy (red) and friendly (blue) unit health-bar pixels inside the arena.
+
+    Each mask excludes only the towers of its own colour, so an enemy standing on our
+    tower (where attackers stand) is still counted, and vice versa.
+    """
     b = iar[..., 0].astype(int)
     g = iar[..., 1].astype(int)
     r = iar[..., 2].astype(int)
     enemy = (r > 185) & (g < 105) & (b < 105) & (r - g > 95)
     ours = (b > 185) & (r < 115) & (g > 100) & (g < 195)
-    keep = np.zeros(iar.shape[:2], dtype=bool)
-    left, top, right, bottom = ARENA_LTRB
-    keep[top:bottom, left:right] = True
-    for x1, y1, x2, y2 in TOWER_BOXES:
-        keep[y1:y2, x1:x2] = False
-    return enemy & keep, ours & keep
+    picker = emote_picker_open(iar)
+    return enemy & _arena_keep(iar, ENEMY_TOWER_BOXES, picker), ours & _arena_keep(iar, OUR_TOWER_BOXES, picker)
 
 
 def lane_counts(mask: np.ndarray, half: str) -> tuple[int, int]:

@@ -17,6 +17,7 @@ NAMES = [
     "t078_our_push_left",
     "t126_enemy_tower_damaged",
     "t148_our_tower_destroyed",
+    "t026_enemy_at_our_tower",
 ]
 
 

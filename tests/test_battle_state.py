@@ -10,6 +10,7 @@ import numpy as np
 from pyclashbot.bot.battle_state import (
     BattleState,
     count_elixir_pips,
+    emote_picker_open,
     lane_counts,
     read_battle_state,
     tower_hp_fraction,
@@ -95,3 +96,19 @@ def test_weakest_enemy_lane_is_none_when_both_towers_are_gone() -> None:
     state = BattleState(5, (0, 0), (0, 0), (0, 0), {"our_L": 1.0, "our_R": 1.0, "their_L": None, "their_R": None}, 10.0)
     assert state.weakest_enemy_lane() is None
     assert state.standing_towers("their") == 0
+
+
+def test_enemy_standing_at_our_tower_is_still_detected() -> None:
+    """Attackers stand on the tower footprint; excluding the whole footprint hid them."""
+    enemy, _ = unit_bar_masks(load("t026_enemy_at_our_tower"))
+    left, right = lane_counts(enemy, "our")
+    assert left >= ENEMY_PRESENCE_MIN
+    assert right < ENEMY_PRESENCE_MIN
+
+
+def test_emote_picker_is_recognised_and_ignored() -> None:
+    """The bot's own emote menu draws red king mouths across our half; it must not read as enemies."""
+    assert emote_picker_open(load("t035_enemy_push_left")) is True
+    assert emote_picker_open(load("t000_empty")) is False
+    enemy, _ = unit_bar_masks(load("t035_enemy_push_left"))
+    assert lane_counts(enemy, "our")[1] < ENEMY_PRESENCE_MIN
