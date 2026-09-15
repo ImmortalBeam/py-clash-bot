@@ -225,4 +225,5 @@ EMOTE_PICKER_BAND = (60, 355, 360, 440)
 EMOTE_PICKER_WHITE_MIN = 0.06  # near-white fraction of the band: ~0.12 open, <0.02 otherwise
 ENEMY_PRESENCE_MIN = 15  # unit-bar pixels on our half that count as a push (a lone unit ~25)
 TOWER_BAR_MIN_PIXELS = 4
+TOWER_BAR_ROW_SEARCH = 3  # the bright fill row drifts a few px between arenas; scan y±3
 TOWER_BADGE_MIN_PIXELS = 6

@@ -22,6 +22,7 @@ from pyclashbot.bot.coords import (
     TOWER_BADGE_BOXES,
     TOWER_BADGE_MIN_PIXELS,
     TOWER_BAR_MIN_PIXELS,
+    TOWER_BAR_ROW_SEARCH,
     TOWER_HP_BARS,
 )
 from pyclashbot.bot.state_detect import ELIXIR_COLOR, ELIXIR_COORDS
@@ -126,12 +127,15 @@ def tower_hp_fraction(iar: np.ndarray, tower: str) -> float | None:
     if not tower_standing(iar, tower):
         return None
     y, x0, x1 = TOWER_HP_BARS[tower]
-    row = iar[y, x0 : x1 + 1].astype(int)
+    band = iar[y - TOWER_BAR_ROW_SEARCH : y + TOWER_BAR_ROW_SEARCH + 1, x0 : x1 + 1].astype(int)
     if tower.startswith("their"):
-        filled = (row[:, 2] > 200) & (row[:, 0] > 100) & (row[:, 1] < 130)  # pink
+        filled = (band[..., 2] > 200) & (band[..., 0] > 100) & (band[..., 1] < 130)  # bright pink fill
     else:
-        filled = (row[:, 0] > 200) & (row[:, 2] < 140) & (row[:, 1] > 120)  # blue
-    idx = np.where(filled)[0]
+        filled = (band[..., 0] > 200) & (band[..., 2] < 140) & (band[..., 1] > 120)  # bright blue fill
+    # The bright fill row drifts a couple of px between arenas; the rows around it are
+    # the bar's dark border, so take the row with the most fill pixels.
+    best = filled[int(np.argmax(filled.sum(axis=1)))]
+    idx = np.where(best)[0]
     if len(idx) < TOWER_BAR_MIN_PIXELS:
         return 0.05  # standing but almost no bar visible: nearly dead
     return min(1.0, float(idx.max() + 1) / float(x1 - x0 + 1))

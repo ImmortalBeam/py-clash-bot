@@ -18,6 +18,7 @@ NAMES = [
     "t126_enemy_tower_damaged",
     "t148_our_tower_destroyed",
     "t026_enemy_at_our_tower",
+    "t004_bar_row_offset",
 ]
 
 

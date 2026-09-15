@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pyclashbot.bot.battle_policy import (
     CHIP_MIN_ELIXIR,
+    FINISH_MIN_ELAPSED_S,
     PUSH_COOLDOWN_S,
     HandCard,
     PushMemory,
@@ -130,3 +131,12 @@ def test_chip_allowed_once_the_push_cooldown_has_passed() -> None:
 
 def test_chip_needs_a_cushion_of_elixir() -> None:
     assert CHIP_MIN_ELIXIR >= 7
+
+
+def test_no_finish_in_the_opening_seconds() -> None:
+    """A tower cannot be near death at 1 s; an early low reading is a misread, not a target."""
+    hand = [*HAND[:2], HandCard(2, "fireball", "big_spell"), HAND[3]]
+    d = decide(state(elixir=4, hp={**FULL, "their_L": 0.05}, elapsed=FINISH_MIN_ELAPSED_S - 1), hand, None)
+    assert d.kind != "finish"
+    d = decide(state(elixir=4, hp={**FULL, "their_L": 0.05}, elapsed=FINISH_MIN_ELAPSED_S + 1), hand, None)
+    assert d.kind == "finish"

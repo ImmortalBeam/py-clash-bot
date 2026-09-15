@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 FOLLOW_UP_WINDOW_S = 8.0
 FINISH_HP = 0.15
+FINISH_MIN_ELAPSED_S = 20.0  # a tower cannot be near death this early; treat low reads as noise
 ENDGAME_S = 120.0  # double elixir: one less elixir needed to commit
 LAST_SECONDS_S = 30.0
 MATCH_LENGTH_S = 180.0
@@ -111,7 +112,7 @@ def decide(state: BattleState, hand: list[HandCard], push: PushMemory | None) ->
 
     for lane_name, key in (("left", "their_L"), ("right", "their_R")):
         hp = state.tower_hp.get(key)
-        if hp is not None and hp < FINISH_HP:
+        if hp is not None and hp < FINISH_HP and state.elapsed >= FINISH_MIN_ELAPSED_S:
             if _has_role(hand, "big_spell"):
                 return Decision("finish", lane_name, ("big_spell",), 0, "spell_tower", f"finish {lane_name} tower")
             if _has_role(hand, "chip"):

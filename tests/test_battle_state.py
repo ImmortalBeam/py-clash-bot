@@ -112,3 +112,12 @@ def test_emote_picker_is_recognised_and_ignored() -> None:
     assert emote_picker_open(load("t000_empty")) is False
     enemy, _ = unit_bar_masks(load("t035_enemy_push_left"))
     assert lane_counts(enemy, "our")[1] < ENEMY_PRESENCE_MIN
+
+
+def test_tower_bar_is_found_when_its_row_shifts_a_few_pixels() -> None:
+    """Second policy run, match 3: the bright fill row sat at y=92 instead of 94, so both
+    full-health enemy towers read as 5% and the bot 'finished' them with Goblin Barrels."""
+    im = load("t004_bar_row_offset")
+    for tower in ("their_L", "their_R", "our_L", "our_R"):
+        hp = tower_hp_fraction(im, tower)
+        assert hp is not None and hp >= 0.9, tower
