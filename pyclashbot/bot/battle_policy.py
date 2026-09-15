@@ -88,6 +88,15 @@ def _has_role(hand: list[HandCard], *roles: str) -> bool:
     return any(card.role in roles for card in hand)
 
 
+def attack_lane(state: BattleState) -> str:
+    """Lane to push: the weakest standing enemy princess tower, or, once both are down,
+    the king through the lane where our own tower still protects the path."""
+    lane = state.weakest_enemy_lane()
+    if lane is not None:
+        return lane
+    return "left" if state.tower_hp.get("our_L") is not None else "right"
+
+
 def decide(state: BattleState, hand: list[HandCard], push: PushMemory | None) -> Decision:
     mode = game_mode(state)
 
@@ -108,18 +117,18 @@ def decide(state: BattleState, hand: list[HandCard], push: PushMemory | None) ->
             if _has_role(hand, "chip"):
                 return Decision("finish", lane_name, ("chip",), 0, "chip", f"finish {lane_name} tower")
 
-    target = state.weakest_enemy_lane()
+    target = attack_lane(state)
     threshold = attack_threshold(mode, state.elapsed)
-    if target is not None and state.elixir >= threshold and _has_role(hand, "tank", "win_condition"):
+    if state.elixir >= threshold and _has_role(hand, "tank", "win_condition"):
         return Decision(
             "attack", target, ("tank", "win_condition"), threshold, "bridge", f"{mode}: push {target} at {threshold}"
         )
 
     push_settled = push is None or state.elapsed - push.started_at > PUSH_COOLDOWN_S
-    if target is not None and push_settled and state.elixir >= CHIP_MIN_ELIXIR and _has_role(hand, "chip"):
+    if push_settled and state.elixir >= CHIP_MIN_ELIXIR and _has_role(hand, "chip"):
         return Decision("chip", target, ("chip",), CHIP_MIN_ELIXIR, "chip", f"chip {target} tower")
 
-    if target is not None and state.elixir >= threshold and _has_role(hand, "support"):
+    if state.elixir >= threshold and _has_role(hand, "support"):
         # No tank in hand: lead with support rather than sit on full elixir.
         return Decision("attack", target, ("support",), threshold, "bridge", f"{mode}: support push {target}")
 

@@ -4,7 +4,15 @@ import random
 import time
 from typing import Literal
 
-from pyclashbot.bot.battle_policy import Decision, HandCard, PushMemory, choose_slot, decide, role_for_group
+from pyclashbot.bot.battle_policy import (
+    Decision,
+    HandCard,
+    PushMemory,
+    attack_lane,
+    choose_slot,
+    decide,
+    role_for_group,
+)
 from pyclashbot.bot.battle_state import read_battle_state
 from pyclashbot.bot.card_detection import (
     check_which_cards_are_available,
@@ -542,7 +550,7 @@ def _fight_loop(
                 logger.change_status("Held too long — playing the first affordable card")
                 decision = Decision(
                     "attack",
-                    state.weakest_enemy_lane() or "left",
+                    attack_lane(state),
                     tuple(card.role for card in hand),
                     0,
                     "bridge",

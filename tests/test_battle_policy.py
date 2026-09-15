@@ -97,9 +97,13 @@ def test_chip_when_clear_and_affordable() -> None:
     assert d.kind == "chip" and d.zone == "chip"
 
 
-def test_no_attack_when_no_enemy_tower_lane_is_known() -> None:
+def test_both_enemy_towers_down_means_attack_the_king_through_our_standing_lane() -> None:
+    """Match 7 of the policy run: 2-2 in overtime, both enemy princess towers gone, the bot
+    held at 10 elixir with no target while the opponent took our king."""
     d = decide(state(elixir=10, hp={**FULL, "their_L": None, "their_R": None}), HAND, None)
-    assert d.kind == "hold"
+    assert d.kind == "attack" and d.lane == "left"
+    d = decide(state(elixir=10, hp={**FULL, "their_L": None, "their_R": None, "our_L": None}), HAND, None)
+    assert d.kind == "attack" and d.lane == "right"
 
 
 def test_choose_slot_follows_role_order_then_avoids_recent() -> None:
