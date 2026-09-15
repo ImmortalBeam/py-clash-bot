@@ -185,3 +185,37 @@ PLAY_AGAIN_TEMPLATE_CLICK_OFFSET = (44, 18)
 RESULT_VICTORY_BANNER_SUBCROP = (120, 235, 300, 285)
 # Band holding the "WINNER!" label above the top (opponent) crowns on a defeat.
 RESULT_DEFEAT_BANNER_SUBCROP = (120, 45, 300, 95)
+
+# --- Battle: arena geometry (419x633, player at the bottom) ---
+# Measured on 2026-09-15 frames (tests/fixtures/battle). River at y ~255-275; the
+# player's half starts at the bridge foot; lanes split at the king towers' centre.
+ARENA_LTRB = (55, 60, 365, 470)
+LANE_SPLIT_X = 209
+RIVER_Y = 283
+# Tower footprints (x1, y1, x2, y2) excluded from unit-bar counting: enemy princess L/R,
+# enemy king, our princess L/R, our king (extended upward to cover its health bar).
+TOWER_BOXES = (
+    (70, 75, 145, 155),
+    (270, 75, 345, 155),
+    (165, 15, 255, 80),
+    (70, 355, 145, 432),
+    (270, 355, 345, 432),
+    (165, 400, 255, 482),
+)
+# Princess-tower health bars: (row y, x0, x1) of the filled bar at full health.
+TOWER_HP_BARS = {
+    "their_L": (94, 103, 141),
+    "their_R": (94, 289, 327),
+    "our_L": (394, 103, 141),
+    "our_R": (394, 290, 327),
+}
+# Gold level badge left of each bar: present while the tower stands.
+TOWER_BADGE_BOXES = {
+    "their_L": (86, 86, 102, 102),
+    "their_R": (272, 86, 288, 102),
+    "our_L": (86, 386, 102, 402),
+    "our_R": (273, 386, 289, 402),
+}
+ENEMY_PRESENCE_MIN = 25  # unit-bar pixels on our half that count as a push
+TOWER_BAR_MIN_PIXELS = 4
+TOWER_BADGE_MIN_PIXELS = 6
