@@ -11,25 +11,28 @@ from pyclashbot.bot.coords import CHAMPION_ABILITY_DISMISS_COORD
 # CARD_GROUPS maps card ids → key below (see #674 for full id list including pre-fingerprint evo/hero).
 # Visual map: docs/placement-zones.md
 PLAY_COORDS = {
-    # Troops: bridge line (tanks + heavy win conditions share coords until a follow-up retune).
+    # Troops: bridge line (tanks + heavy win conditions). Dropped at the bridge foot so
+    # they engage at once; the bot has no tank-then-support sequencing, so deep plays
+    # only cost walking time.
     "bridge_line": {
-        "left": [(115, 332)],
-        "right": [(295, 336)],
+        "left": [(113, 286), (115, 291)],
+        "right": [(300, 284), (295, 291)],
     },
     # Troops: bridge rush (Hog, Ram, Wall Breakers, …).
     "bridge_rush": {
         "left": [(77, 281), (113, 286), (154, 283)],
         "right": [(257, 283), (300, 284), (353, 283)],
     },
-    # Troops/buildings: back field support (swarms, spawners, ranged support).
+    # Troops: support (swarms, spawners, ranged). One to two tiles behind the bridge,
+    # in lane, so they trail a tank without crossing the whole arena alone.
     "back_support": {
-        "left": [(69, 442), (158, 444), (166, 394), (102, 451)],
-        "right": [(247, 396), (264, 440), (343, 442), (312, 456)],
+        "left": [(115, 310), (100, 318), (130, 318)],
+        "right": [(295, 310), (280, 318), (310, 318)],
     },
-    # Troops: king-tower lane (Witch, Archer Queen, …).
+    # Troops: heavy support (Witch, Archer Queen, …). Same band as back_support.
     "king_lane": {
-        "left": [(70, 463), (184, 398), (166, 394), (191, 473)],
-        "right": [(247, 396), (264, 440), (343, 463), (211, 471)],
+        "left": [(115, 310), (100, 318), (130, 318)],
+        "right": [(295, 310), (280, 318), (310, 318)],
     },
     # Princess (+ evo): deep lane, tuned separately from king_lane.
     "princess": {
@@ -11742,20 +11745,12 @@ def get_play_coords_for_card(emulator, logger, card_index, elapsed_time: float =
 
 
 def calculate_play_coords(card_grouping: str, side_preference: str, elapsed_time: float = 0):
-    # if there is a dedicated coordinate for this card
+    # Unrecognised card: anywhere in the lane from the bridge foot to two tiles behind
+    # it, regardless of match time. (The old fallback started next to the king tower.)
     if card_grouping == "No group":
-        if elapsed_time < 12:  # Less than 5 seconds
-            if side_preference == "left":
-                return (random.randint(60, 206), random.randint(441, 456))
-            return (random.randint(210, 351), random.randint(441, 456))
-        if elapsed_time < 80:  # Less than 2 minutes
-            if side_preference == "left":
-                return (random.randint(60, 206), random.randint(360, 456))
-            return (random.randint(210, 351), random.randint(360, 456))
-        # 2 minutes or more
         if side_preference == "left":
-            return (random.randint(60, 206), random.randint(281, 456))
-        return (random.randint(210, 351), random.randint(281, 456))
+            return (random.randint(60, 206), random.randint(285, 330))
+        return (random.randint(210, 351), random.randint(285, 330))
 
     if PLAY_COORDS.get(card_grouping):
         group_datum = PLAY_COORDS[card_grouping]

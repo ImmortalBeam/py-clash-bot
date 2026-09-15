@@ -14,11 +14,11 @@ The bot picks a **play group** for each detected card, then taps a random point 
 
 | Group | Arena area |
 |-------|------------|
-| `king_lane` | Deep lane / behind king |
+| `king_lane` | Just behind the bridge, in lane |
 | `princess` | Princess lane |
-| `bridge_line` | Bridge line (tanks, heavies) |
+| `bridge_line` | Bridge foot (tanks, heavies) |
 | `bridge_rush` | In front of bridge |
-| `back_support` | Behind bridge |
+| `back_support` | Just behind the bridge, in lane |
 | `defense_building` | Back-field buildings |
 | `siege_building` | Mortar / X-Bow |
 | `center_spell` | Center behind river |

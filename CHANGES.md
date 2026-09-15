@@ -10,6 +10,10 @@ Based on py-clash-bot upstream (`34d11e5`). All changes are in `pyclashbot/` and
 - Detection uses pixel fingerprints with template-image fallbacks for the Play Again button and the WINNER! label on both win and loss screens. Popups on the result screen (trophy reward, reward choice) are dismissed first. If the button never appears, the bot falls back to the old OK path.
 - Implemented as a new `play_again` state in the state machine, so failures are reported under their own state name.
 
+## Changed: forward troop placement
+
+- Tanks (`bridge_line`) now start at the bridge foot instead of mid-field; support troops (`back_support`, `king_lane`) start one to two tiles behind the bridge instead of beside the king tower; unrecognised cards fall back to the same band instead of the back field. The bot has no tank-then-support sequencing, so deep plays only cost walking time. Spells, buildings, spirits and tunnelling cards are unchanged. `docs/placement-zones.md` updated.
+
 ## Fixed
 
 - **Gift popup loop while waiting for a match.** The tap used to "wake" the screen while waiting for matchmaking landed on the daily-gift icon of the main menu. If the search was cancelled, the bot opened and closed the gift popup three times a second for two minutes. Moved to a real dead spot.
