@@ -34,6 +34,17 @@ PLAY_COORDS = {
         "left": [(115, 310), (100, 318), (130, 318)],
         "right": [(295, 310), (280, 318), (310, 318)],
     },
+    # Defense: in front of our princess tower, in lane, so defenders engage before the
+    # tower takes damage. Used for troops and buildings when enemies are on our half.
+    "defense": {
+        "left": [(115, 340), (100, 352), (130, 348)],
+        "right": [(295, 340), (310, 352), (280, 348)],
+    },
+    # Defensive spells: same band, centred on the lane.
+    "spell_defense": {
+        "left": [(115, 335)],
+        "right": [(295, 335)],
+    },
     # Princess (+ evo): deep lane, tuned separately from king_lane.
     "princess": {
         "left": [(70, 463), (240, 400), (191, 471), (220, 402)],
@@ -11760,6 +11771,26 @@ def calculate_play_coords(card_grouping: str, side_preference: str, elapsed_time
             return random.choice(group_datum["right"])
         if "coords" in group_datum:
             return random.choice(group_datum["coords"])
+
+
+_SPELL_GROUPS = {"reactive_spell", "lane_spell", "center_spell", "large_spell", "rocket", "tornado"}
+_SELF_TARGETING_GROUPS = {"bridge_rush", "goblin_barrel", "graveyard", "miner", "goblin_drill"} | _SPELL_GROUPS
+
+
+def zone_play_coords(zone: str, lane: str, card_group: str) -> tuple[int, int] | None:
+    """Where to drop a card for a policy zone: the zone's table, or the card's own
+    table when the card already aims at the tower (spells, tunnelling, bridge rush)."""
+    if zone == "none":
+        return None
+    if zone == "defense":
+        table = "spell_defense" if card_group in _SPELL_GROUPS else "defense"
+    elif zone == "support_behind":
+        table = "back_support"
+    elif zone == "bridge":
+        table = card_group if card_group in _SELF_TARGETING_GROUPS else "bridge_line"
+    else:  # chip, spell_tower
+        table = card_group if card_group in PLAY_COORDS else "lane_spell"
+    return calculate_play_coords(table, lane)
 
 
 bridge_iar: numpy.ndarray[tuple[int, ...], numpy.dtype[numpy.uint8]] | None = None

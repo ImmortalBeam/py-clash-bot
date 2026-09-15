@@ -12,7 +12,7 @@ import random
 
 import pytest
 
-from pyclashbot.bot.card_detection import PLAY_COORDS, calculate_play_coords
+from pyclashbot.bot.card_detection import PLAY_COORDS, calculate_play_coords, zone_play_coords
 
 BRIDGE_Y = (281, 292)  # bridge foot, same band the bridge_rush group uses
 BEHIND_BRIDGE_Y = (300, 330)  # one to two tiles behind the bridge
@@ -62,3 +62,22 @@ def test_non_troop_groups_are_unchanged() -> None:
     assert PLAY_COORDS["goblin_barrel"]["left"] == [(115, 161), (116, 161), (117, 161)]
     assert PLAY_COORDS["miner"]["right"][0] == (274, 152)
     assert PLAY_COORDS["bridge_rush"]["left"] == [(77, 281), (113, 286), (154, 283)]
+
+
+def test_defense_zone_is_in_front_of_our_towers() -> None:
+    for side in ("left", "right"):
+        for x, y in PLAY_COORDS["defense"][side]:
+            assert 330 <= y <= 360, (side, x, y)
+            assert _in(x, LANE_X[side]), (side, x, y)
+
+
+def test_zone_lookup_routes_by_zone_and_card_group() -> None:
+    random.seed(7)
+    assert zone_play_coords("defense", "left", "bridge_line") in PLAY_COORDS["defense"]["left"]
+    assert zone_play_coords("defense", "right", "reactive_spell") in PLAY_COORDS["spell_defense"]["right"]
+    assert zone_play_coords("support_behind", "left", "back_support") in PLAY_COORDS["back_support"]["left"]
+    assert zone_play_coords("bridge", "right", "bridge_line") in PLAY_COORDS["bridge_line"]["right"]
+    assert zone_play_coords("bridge", "left", "bridge_rush") in PLAY_COORDS["bridge_rush"]["left"]
+    assert zone_play_coords("chip", "left", "goblin_barrel") in PLAY_COORDS["goblin_barrel"]["left"]
+    assert zone_play_coords("spell_tower", "right", "large_spell") in PLAY_COORDS["large_spell"]["right"]
+    assert zone_play_coords("none", "left", "bridge_line") is None
