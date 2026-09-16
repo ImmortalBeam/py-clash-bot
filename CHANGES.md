@@ -19,6 +19,7 @@ Based on py-clash-bot upstream (`34d11e5`). All changes are in `pyclashbot/` and
 - Baseline before this change (2026-09-15, six Trophy Road matches, forward placement only): 2 wins, 4 losses.
 - First policy run (2026-09-15, ten Trophy Road matches, before the attacker-on-tower, chip-cushion and king-attack fixes): 6 wins, 4 losses.
 - Second policy run (2026-09-15, ten matches, with the attacker-on-tower, chip-cushion and king-attack fixes): 8 wins, 2 losses.
+- Overnight watch (2026-09-15/16, 135 Trophy Road matches on a rising trophy count, 19:37 to 03:35): 65 wins, 67 losses. Analysis: 40% of all defend plays answered fewer than 30 enemy pixels (one small unit) and half repeated the same lane within 6 s; losses spent more time at 2 elixir or less and lost a tower first in two thirds of cases. Fix: defense tiered by threat size (trivial ignored, small answered with a cheap card only, large unlocks tanks and spells) with a 6 s per-lane cooldown.
 - Fixes found during the runs: enemies standing on our towers are counted (the tower footprint used to hide them); the bot's own emote picker is masked; chip cards need 7 elixir and 15 s since the last push; with both enemy princess towers down the push goes at the king; the tower health bar's fill row is searched within a few pixels (it drifts between arenas) and no "finish" fires in the first 20 s; a tower losing 8% or more between ticks with no visible enemy (Balloon, spells) is defended as if under attack.
 
 ## Changed: forward troop placement
