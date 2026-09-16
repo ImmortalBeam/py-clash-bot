@@ -160,7 +160,7 @@ def _defend_roles(threat: int) -> tuple[str, ...]:
         return ("cheap",)
     if threat < THREAT_LARGE:
         return ("building", "support", "cheap")
-    return ("building", "tank", "support", "cheap", "small_spell")
+    return ("building", "tank", "support", "small_spell")  # no cheap card into a big push
 
 
 def threat_in_lanes(state: BattleState, incoming_edge: tuple[bool, bool] = (True, True)) -> tuple[str | None, int]:

@@ -271,3 +271,12 @@ def test_incoming_group_only_triggers_on_arrival() -> None:
     assert d.kind != "defend"
     d = decide(state_incoming(6, incoming=(240, 0)), CHEAP_HAND, None, incoming_edge=(True, False))
     assert d.kind == "defend"
+
+
+def test_large_threat_is_not_answered_with_a_cheap_card() -> None:
+    """2026-09-16 matches 27/28: Electro Spirits thrown into 260-390 px pushes were pure waste;
+    better to hold a few seconds for Witch, Ice Wizard or PEKKA."""
+    d = decide(state(elixir=2, enemy_our=(THREAT_LARGE + 100, 0)), CHEAP_HAND, None)
+    assert d.kind == "defend" and "cheap" not in d.roles
+    only_cheap = [HandCard(0, "electro_spirit", "cheap")]
+    assert choose_slot(only_cheap, d.roles, recent=[]) is None
