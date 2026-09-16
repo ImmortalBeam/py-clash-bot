@@ -14,6 +14,27 @@ FINISH_MIN_ELAPSED_S = 20.0  # a tower cannot be near death this early; treat lo
 ENDGAME_S = 120.0  # double elixir: one less elixir needed to commit
 LAST_SECONDS_S = 30.0
 MATCH_LENGTH_S = 180.0
+# Threat size = enemy health-bar pixels in the lane on our half. Measured overnight
+# (2026-09-15, 135 matches): a lone small unit is < 30, a real push 80-400+.
+THREAT_TRIVIAL = 30  # leave it to the tower
+THREAT_MEDIUM = 80  # answer with a cheap card only
+THREAT_LARGE = 150  # anything goes, spells included
+DEFEND_COOLDOWN_S = 6.0  # one answer per lane per window unless the threat doubles
+# Cards cheap enough (1-2 elixir) to throw at a small threat without bleeding elixir.
+CHEAP_CARDS = frozenset(
+    {
+        "skeletons",
+        "bats",
+        "ice_spirit",
+        "fire_spirit",
+        "electro_spirit",
+        "heal_spirit",
+        "goblins",
+        "spear_goblins",
+        "ice_golem",
+        "wall_breakers",
+    }
+)
 TOWER_UNDER_FIRE_DROP = 0.08  # health lost between two ticks that means something is hitting the tower
 CHIP_MIN_ELIXIR = 7  # keep a cushion: a chip card must not leave us empty for the counter-push
 PUSH_COOLDOWN_S = 15.0  # no chip on top of a push we just committed to
@@ -45,6 +66,13 @@ def role_for_group(group: str) -> str:
     return ROLE_OF_GROUP.get(group, "support")
 
 
+def role_for_card(card_id: str, group: str) -> str:
+    """Role for a hand card: cheap troops get their own role so small threats cost little."""
+    if card_id in CHEAP_CARDS:
+        return "cheap"
+    return role_for_group(group)
+
+
 @dataclass(frozen=True)
 class HandCard:
     slot: int
@@ -56,6 +84,13 @@ class HandCard:
 class PushMemory:
     lane: str
     started_at: float
+
+
+@dataclass
+class DefendMemory:
+    lane: str
+    at: float
+    threat: int
 
 
 @dataclass(frozen=True)
@@ -116,15 +151,42 @@ def attack_lane(state: BattleState) -> str:
     return "left" if state.tower_hp.get("our_L") is not None else "right"
 
 
+def _defend_roles(threat: int) -> tuple[str, ...]:
+    if threat < THREAT_MEDIUM:
+        return ("cheap",)
+    if threat < THREAT_LARGE:
+        return ("building", "support", "cheap")
+    return ("building", "tank", "support", "cheap", "small_spell")
+
+
 def decide(
-    state: BattleState, hand: list[HandCard], push: PushMemory | None, under_fire: str | None = None
+    state: BattleState,
+    hand: list[HandCard],
+    push: PushMemory | None,
+    under_fire: str | None = None,
+    last_defend: DefendMemory | None = None,
 ) -> Decision:
     mode = game_mode(state)
 
-    lane = state.threatened_lane() or under_fire
-    if lane is not None:
-        why = f"enemy on our {lane}" if state.threatened_lane() else f"our {lane} tower under fire"
-        return Decision("defend", lane, ("building", "support", "tank", "small_spell"), 0, "defense", why)
+    seen_lane = state.threatened_lane()
+    threat = max(state.enemy_our_half) if seen_lane else 0
+    if seen_lane is not None and threat >= THREAT_TRIVIAL:
+        recently = (
+            last_defend is not None
+            and last_defend.lane == seen_lane
+            and state.elapsed - last_defend.at < DEFEND_COOLDOWN_S
+            and threat < 2 * last_defend.threat
+            and threat < THREAT_LARGE
+        )
+        if recently:
+            return Decision("hold", None, (), 0, "none", f"already answered {seen_lane} ({threat}px)")
+        return Decision(
+            "defend", seen_lane, _defend_roles(threat), 0, "defense", f"enemy on our {seen_lane} ({threat}px)"
+        )
+    if under_fire is not None:
+        return Decision(
+            "defend", under_fire, ("building", "support", "cheap"), 0, "defense", f"our {under_fire} tower under fire"
+        )
 
     if push is not None and state.elapsed - push.started_at <= FOLLOW_UP_WINDOW_S and _has_role(hand, "support"):
         return Decision("follow_up", push.lane, ("support",), 0, "support_behind", f"support the {push.lane} push")

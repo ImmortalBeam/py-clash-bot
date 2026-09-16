@@ -6,12 +6,13 @@ from typing import Literal
 
 from pyclashbot.bot.battle_policy import (
     Decision,
+    DefendMemory,
     HandCard,
     PushMemory,
     attack_lane,
     choose_slot,
     decide,
-    role_for_group,
+    role_for_card,
     under_fire_lane,
 )
 from pyclashbot.bot.battle_state import read_battle_state
@@ -470,7 +471,7 @@ def read_hand(emulator) -> list[HandCard]:
     hand: list[HandCard] = []
     for slot in check_which_cards_are_available(emulator):
         card_id = identify_hand_cards(emulator, slot) or "unknown"
-        hand.append(HandCard(slot, card_id, role_for_group(get_card_group(card_id))))
+        hand.append(HandCard(slot, card_id, role_for_card(card_id, get_card_group(card_id))))
     return hand
 
 
@@ -517,6 +518,7 @@ def _fight_loop(
     recent: list[int] = []
     ability_available_since: float | None = None
     prev_tower_hp: dict[str, float | None] | None = None
+    last_defend: DefendMemory | None = None
 
     while True:
         if not check_for_in_battle_with_delay(emulator):
@@ -547,7 +549,7 @@ def _fight_loop(
         hand = read_hand(emulator)
         under_fire = under_fire_lane(prev_tower_hp, state.tower_hp)
         prev_tower_hp = state.tower_hp
-        decision = decide(state, hand, push, under_fire)
+        decision = decide(state, hand, push, under_fire, last_defend)
 
         if decision.kind == "hold":
             if time.time() - hold_since > HOLD_TIMEOUT_S and hand:
@@ -574,6 +576,8 @@ def _fight_loop(
             push = PushMemory(decision.lane or "left", elapsed)
         elif decision.kind in ("follow_up", "defend"):
             push = None
+        if decision.kind == "defend":
+            last_defend = DefendMemory(decision.lane or "left", elapsed, max(state.enemy_our_half))
         time.sleep(1.0)
 
     # Fight over: freeze capture so the pack excludes post-fight nav (manifest/outcome written later).

@@ -4,8 +4,13 @@ from __future__ import annotations
 
 from pyclashbot.bot.battle_policy import (
     CHIP_MIN_ELIXIR,
+    DEFEND_COOLDOWN_S,
     FINISH_MIN_ELAPSED_S,
     PUSH_COOLDOWN_S,
+    THREAT_LARGE,
+    THREAT_MEDIUM,
+    THREAT_TRIVIAL,
+    DefendMemory,
     HandCard,
     PushMemory,
     attack_threshold,
@@ -148,3 +153,58 @@ def test_tower_under_fire_without_visible_enemies_is_defended() -> None:
     assert d.kind == "defend" and d.lane == "left"
     d = decide(state(elixir=3), HAND, None, under_fire=None)
     assert d.kind == "hold"
+
+
+CHEAP_HAND = [
+    HandCard(0, "electro_spirit", "support"),
+    HandCard(1, "witch", "support"),
+    HandCard(2, "cannon", "building"),
+    HandCard(3, "fireball", "small_spell"),
+]
+
+
+def test_trivial_threat_is_left_to_the_tower() -> None:
+    """Overnight: 40% of defends answered fewer than 30 enemy pixels, one small unit."""
+    d = decide(state(elixir=5, enemy_our=(THREAT_TRIVIAL - 1, 0)), CHEAP_HAND, None)
+    assert d.kind != "defend"
+
+
+def test_small_threat_gets_only_a_cheap_card() -> None:
+    d = decide(state(elixir=5, enemy_our=(THREAT_MEDIUM - 1, 0)), CHEAP_HAND, None)
+    assert d.kind == "defend" and d.lane == "left"
+    assert d.roles == ("cheap",)
+
+
+def test_medium_threat_gets_building_support_or_cheap_but_no_spell() -> None:
+    d = decide(state(elixir=5, enemy_our=(THREAT_LARGE - 1, 0)), CHEAP_HAND, None)
+    assert d.kind == "defend"
+    assert "small_spell" not in d.roles and "building" in d.roles and "cheap" in d.roles
+
+
+def test_large_threat_allows_tank_and_spell() -> None:
+    d = decide(state(elixir=5, enemy_our=(THREAT_LARGE + 50, 0)), CHEAP_HAND, None)
+    assert d.kind == "defend"
+    assert "tank" in d.roles and "small_spell" in d.roles
+
+
+def test_same_lane_is_not_defended_again_within_the_cooldown_unless_the_threat_grew() -> None:
+    """Overnight: half of all defends repeated the same lane within 6 s."""
+    recent = DefendMemory(lane="left", at=60.0 - DEFEND_COOLDOWN_S / 2, threat=100)
+    d = decide(state(elixir=5, enemy_our=(100, 0), elapsed=60.0), CHEAP_HAND, None, last_defend=recent)
+    assert d.kind != "defend"
+    grown = decide(state(elixir=5, enemy_our=(260, 0), elapsed=60.0), CHEAP_HAND, None, last_defend=recent)
+    assert grown.kind == "defend"
+    later = decide(
+        state(elixir=5, enemy_our=(100, 0), elapsed=60.0 + DEFEND_COOLDOWN_S), CHEAP_HAND, None, last_defend=recent
+    )
+    assert later.kind == "defend"
+
+
+def test_cheap_role_comes_from_a_known_low_cost_card_set() -> None:
+    from pyclashbot.bot.battle_policy import role_for_card
+
+    assert role_for_card("electro_spirit", "spirit") == "cheap"
+    assert role_for_card("bats", "back_support") == "cheap"
+    assert role_for_card("skeletons", "back_support") == "cheap"
+    assert role_for_card("witch", "king_lane") == "support"
+    assert role_for_card("pekka", "bridge_line") == "tank"
