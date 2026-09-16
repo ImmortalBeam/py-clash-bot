@@ -253,3 +253,21 @@ def test_incoming_group_is_defended_before_it_crosses() -> None:
 def test_small_incoming_activity_is_ignored() -> None:
     d = decide(state_incoming(6, incoming=(30, 0)), CHEAP_HAND, None)
     assert d.kind != "defend"
+
+
+def test_defend_decision_carries_the_threat_it_answered() -> None:
+    """2026-09-16 match 25: the cooldown memory stored the raw count (~40) while the decision
+    used the floored threat (80), so 'threat doubled' was always true and the bot re-defended."""
+    d = decide(state_at_tower(5, at_tower=(40, 0), our_half=(40, 0)), CHEAP_HAND, None)
+    assert d.kind == "defend" and d.threat == 80
+    memory = DefendMemory(lane="left", at=60.0 - 2.0, threat=d.threat)
+    again = decide(state_at_tower(5, at_tower=(40, 0), our_half=(40, 0)), CHEAP_HAND, None, last_defend=memory)
+    assert again.kind == "hold"
+
+
+def test_incoming_group_only_triggers_on_arrival() -> None:
+    """A group parked on their side of the bridge is not crossing; answer it once, when it appears."""
+    d = decide(state_incoming(6, incoming=(240, 0)), CHEAP_HAND, None, incoming_edge=(False, False))
+    assert d.kind != "defend"
+    d = decide(state_incoming(6, incoming=(240, 0)), CHEAP_HAND, None, incoming_edge=(True, False))
+    assert d.kind == "defend"

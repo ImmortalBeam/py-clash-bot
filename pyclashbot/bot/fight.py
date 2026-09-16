@@ -31,6 +31,7 @@ from pyclashbot.bot.coords import (
     EMOTE_BUTTON_COORD,
     EMOTE_ICON_COORDS,
     HAND_CARDS_COORDS,
+    INCOMING_MIN,
     PLAYABLE_PLAY_REGION_LTRB,
     QUICKMATCH_POPUP_BUTTON_COORD,
     START_FIGHT_BUTTON_COORD,
@@ -519,6 +520,7 @@ def _fight_loop(
     ability_available_since: float | None = None
     prev_tower_hp: dict[str, float | None] | None = None
     last_defend: DefendMemory | None = None
+    prev_incoming: tuple[int, int] = (0, 0)
 
     while True:
         if not check_for_in_battle_with_delay(emulator):
@@ -549,7 +551,12 @@ def _fight_loop(
         hand = read_hand(emulator)
         under_fire = under_fire_lane(prev_tower_hp, state.tower_hp)
         prev_tower_hp = state.tower_hp
-        decision = decide(state, hand, push, under_fire, last_defend)
+        incoming_edge = (
+            prev_incoming[0] < INCOMING_MIN <= state.enemy_incoming[0],
+            prev_incoming[1] < INCOMING_MIN <= state.enemy_incoming[1],
+        )
+        prev_incoming = state.enemy_incoming
+        decision = decide(state, hand, push, under_fire, last_defend, incoming_edge)
 
         if decision.kind == "hold":
             if time.time() - hold_since > HOLD_TIMEOUT_S and hand:
@@ -577,11 +584,7 @@ def _fight_loop(
         elif decision.kind in ("follow_up", "defend"):
             push = None
         if decision.kind == "defend":
-            last_defend = DefendMemory(
-                decision.lane or "left",
-                elapsed,
-                max(*state.enemy_our_half, *state.enemy_at_tower, *state.enemy_incoming),
-            )
+            last_defend = DefendMemory(decision.lane or "left", elapsed, decision.threat)
         time.sleep(1.0)
 
     # Fight over: freeze capture so the pack excludes post-fight nav (manifest/outcome written later).

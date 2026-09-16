@@ -104,6 +104,7 @@ class Decision:
     min_elixir: int
     zone: str  # defense | support_behind | spell_tower | chip | bridge | none
     reason: str
+    threat: int = 0  # for defend: the threat size the decision answered (feeds the cooldown memory)
 
 
 def game_mode(state: BattleState) -> str:
@@ -162,7 +163,7 @@ def _defend_roles(threat: int) -> tuple[str, ...]:
     return ("building", "tank", "support", "cheap", "small_spell")
 
 
-def threat_in_lanes(state: BattleState) -> tuple[str | None, int]:
+def threat_in_lanes(state: BattleState, incoming_edge: tuple[bool, bool] = (True, True)) -> tuple[str | None, int]:
     """(lane, threat) of the biggest threat on our half, or (None, 0).
 
     A unit in the tower band is hitting the tower and counts as at least a medium
@@ -178,8 +179,8 @@ def threat_in_lanes(state: BattleState) -> tuple[str | None, int]:
             threat = max(count, at_tower, THREAT_MEDIUM)
         elif count >= THREAT_TRIVIAL:
             threat = count
-        elif incoming >= INCOMING_MIN:
-            threat = max(incoming, THREAT_MEDIUM)  # meet it as it crosses
+        elif incoming >= INCOMING_MIN and incoming_edge[idx]:
+            threat = max(incoming, THREAT_MEDIUM)  # meet it as it arrives at the bridge (once)
         else:
             continue
         if threat > best[1]:
@@ -193,10 +194,11 @@ def decide(
     push: PushMemory | None,
     under_fire: str | None = None,
     last_defend: DefendMemory | None = None,
+    incoming_edge: tuple[bool, bool] = (True, True),
 ) -> Decision:
     mode = game_mode(state)
 
-    seen_lane, threat = threat_in_lanes(state)
+    seen_lane, threat = threat_in_lanes(state, incoming_edge)
     if seen_lane is not None:
         recently = (
             last_defend is not None
@@ -208,11 +210,17 @@ def decide(
         if recently:
             return Decision("hold", None, (), 0, "none", f"already answered {seen_lane} ({threat}px)")
         return Decision(
-            "defend", seen_lane, _defend_roles(threat), 0, "defense", f"enemy on our {seen_lane} ({threat}px)"
+            "defend", seen_lane, _defend_roles(threat), 0, "defense", f"enemy on our {seen_lane} ({threat}px)", threat
         )
     if under_fire is not None:
         return Decision(
-            "defend", under_fire, ("building", "support", "cheap"), 0, "defense", f"our {under_fire} tower under fire"
+            "defend",
+            under_fire,
+            ("building", "support", "cheap"),
+            0,
+            "defense",
+            f"our {under_fire} tower under fire",
+            THREAT_MEDIUM,
         )
 
     if push is not None and state.elapsed - push.started_at <= FOLLOW_UP_WINDOW_S and _has_role(hand, "support"):

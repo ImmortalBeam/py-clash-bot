@@ -140,3 +140,31 @@ def test_sharp_tower_health_drop_triggers_a_defend(world) -> None:
 
 def _hp_state(elixir: int, **hp) -> BattleState:
     return BattleState(elixir, (0, 0), (0, 0), (0, 0), {**FULL, **hp}, 30.0)
+
+
+def test_loop_remembers_the_decided_threat_and_incoming_edges(world) -> None:
+    """The second decide() call must receive the first defend's decided threat and an
+    incoming edge of False for a group that was already there on the previous tick."""
+
+    def _incoming(elixir: int) -> BattleState:
+        return BattleState(
+            elixir, (0, 0), (0, 0), (0, 0), dict(FULL), 30.0, enemy_at_tower=(0, 0), enemy_incoming=(240, 0)
+        )
+
+    world["monkeypatch"].setattr(fight, "read_battle_state", lambda _iar, _t: _incoming(6))
+    world["monkeypatch"].setattr(fight, "zone_play_coords", lambda zone, lane, group: (115, 340))
+    calls = []
+    real = fight.decide
+
+    def spy(state, hand, push, under_fire=None, last_defend=None, incoming_edge=(True, True)):
+        calls.append((last_defend, incoming_edge))
+        return real(state, hand, push, under_fire, last_defend, incoming_edge)
+
+    world["monkeypatch"].setattr(fight, "decide", spy)
+
+    fight._fight_loop(world["emulator"], world["logger"], False)
+
+    assert calls[0][1] == (True, False)  # first look: the left group counts as arriving, nothing on the right
+    assert calls[1][0] is not None and calls[1][0].threat == 240  # memory carries the decided threat
+    assert calls[1][1] == (False, False)  # still there, no new arrival
+    assert len(world["emulator"].clicks) == 2  # one defend (card + drop), no repeats
