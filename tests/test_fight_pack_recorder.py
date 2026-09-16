@@ -206,6 +206,8 @@ def test_png_fallback_when_ffv1_unavailable(tmp_path, monkeypatch):
 
 def test_module_singleton_helpers(tmp_path, monkeypatch):
     monkeypatch.setattr(rec, "get_recordings_dir", lambda *a, **k: str(tmp_path))
+    # The disk guard must not depend on the developer's real drive (it refused at 9.9% free).
+    monkeypatch.setattr(rec.shutil, "disk_usage", lambda _p: SimpleNamespace(total=100, used=10, free=90))
 
     assert rec.is_recording() is False
     rec.start_fight_recording(_FakeEmu(), "1v1_classic", "vTEST")
