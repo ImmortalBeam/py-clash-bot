@@ -578,7 +578,9 @@ def _fight_loop(
             push = None
         if decision.kind == "defend":
             last_defend = DefendMemory(
-                decision.lane or "left", elapsed, max(*state.enemy_our_half, *state.enemy_at_tower)
+                decision.lane or "left",
+                elapsed,
+                max(*state.enemy_our_half, *state.enemy_at_tower, *state.enemy_incoming),
             )
         time.sleep(1.0)
 
