@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from pyclashbot.bot.coords import AT_TOWER_MIN
+
 if TYPE_CHECKING:
     from pyclashbot.bot.battle_state import BattleState
 
@@ -159,6 +161,28 @@ def _defend_roles(threat: int) -> tuple[str, ...]:
     return ("building", "tank", "support", "cheap", "small_spell")
 
 
+def threat_in_lanes(state: BattleState) -> tuple[str | None, int]:
+    """(lane, threat) of the biggest threat on our half, or (None, 0).
+
+    A unit in the tower band is hitting the tower and counts as at least a medium
+    threat whatever its pixel size (a Hog's bar hides behind its level badges);
+    elsewhere on our half only groups above THREAT_TRIVIAL count.
+    """
+    best: tuple[str | None, int] = (None, 0)
+    for idx, lane in enumerate(("left", "right")):
+        at_tower = state.enemy_at_tower[idx]
+        count = state.enemy_our_half[idx]
+        if at_tower >= AT_TOWER_MIN:
+            threat = max(count, at_tower, THREAT_MEDIUM)
+        elif count >= THREAT_TRIVIAL:
+            threat = count
+        else:
+            continue
+        if threat > best[1]:
+            best = (lane, threat)
+    return best
+
+
 def decide(
     state: BattleState,
     hand: list[HandCard],
@@ -168,9 +192,8 @@ def decide(
 ) -> Decision:
     mode = game_mode(state)
 
-    seen_lane = state.threatened_lane()
-    threat = max(state.enemy_our_half) if seen_lane else 0
-    if seen_lane is not None and threat >= THREAT_TRIVIAL:
+    seen_lane, threat = threat_in_lanes(state)
+    if seen_lane is not None:
         recently = (
             last_defend is not None
             and last_defend.lane == seen_lane

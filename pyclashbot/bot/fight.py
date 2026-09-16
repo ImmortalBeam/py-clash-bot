@@ -577,7 +577,9 @@ def _fight_loop(
         elif decision.kind in ("follow_up", "defend"):
             push = None
         if decision.kind == "defend":
-            last_defend = DefendMemory(decision.lane or "left", elapsed, max(state.enemy_our_half))
+            last_defend = DefendMemory(
+                decision.lane or "left", elapsed, max(*state.enemy_our_half, *state.enemy_at_tower)
+            )
         time.sleep(1.0)
 
     # Fight over: freeze capture so the pack excludes post-fight nav (manifest/outcome written later).

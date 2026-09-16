@@ -121,3 +121,16 @@ def test_tower_bar_is_found_when_its_row_shifts_a_few_pixels() -> None:
     for tower in ("their_L", "their_R", "our_L", "our_R"):
         hp = tower_hp_fraction(im, tower)
         assert hp is not None and hp >= 0.9, tower
+
+
+def test_units_in_the_tower_band_are_counted_separately() -> None:
+    """2026-09-16 match 3: a Hog Rider on our tower showed only 14 red pixels (its bar was
+    hidden behind level badges) and was dismissed as trivial while the tower died."""
+    state = read_battle_state(load("t032_hog_at_our_tower"), elapsed=32.0)
+    assert state.enemy_at_tower[0] >= 10
+    assert state.enemy_our_half[0] < 30  # pixel count alone would call this trivial
+    assert (
+        read_battle_state(load("t000_empty"), elapsed=0.0).enemy_at_tower == (4, 4)
+        or max(read_battle_state(load("t000_empty"), elapsed=0.0).enemy_at_tower) < 10
+    )
+    assert read_battle_state(load("t026_enemy_at_our_tower"), elapsed=26.0).enemy_at_tower[0] >= 10

@@ -208,3 +208,23 @@ def test_cheap_role_comes_from_a_known_low_cost_card_set() -> None:
     assert role_for_card("skeletons", "back_support") == "cheap"
     assert role_for_card("witch", "king_lane") == "support"
     assert role_for_card("pekka", "bridge_line") == "tank"
+
+
+def state_at_tower(elixir: int, at_tower: tuple[int, int], our_half: tuple[int, int]) -> BattleState:
+    return BattleState(elixir, our_half, (0, 0), (0, 0), dict(FULL), 60.0, enemy_at_tower=at_tower)
+
+
+def test_a_unit_on_our_tower_is_never_trivial() -> None:
+    d = decide(state_at_tower(5, at_tower=(14, 0), our_half=(14, 0)), CHEAP_HAND, None)
+    assert d.kind == "defend" and d.lane == "left"
+    assert "support" in d.roles and "building" in d.roles
+
+
+def test_a_small_group_at_the_bridge_only_gets_a_cheap_answer() -> None:
+    d = decide(state_at_tower(5, at_tower=(0, 0), our_half=(50, 0)), CHEAP_HAND, None)
+    assert d.kind == "defend" and d.roles == ("cheap",)
+
+
+def test_a_large_group_on_our_tower_unlocks_everything() -> None:
+    d = decide(state_at_tower(5, at_tower=(200, 0), our_half=(200, 0)), CHEAP_HAND, None)
+    assert d.kind == "defend" and "tank" in d.roles and "small_spell" in d.roles

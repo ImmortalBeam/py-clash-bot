@@ -21,6 +21,7 @@ from pyclashbot.bot.coords import (
     RIVER_Y,
     TOWER_BADGE_BOXES,
     TOWER_BADGE_MIN_PIXELS,
+    TOWER_BAND_Y,
     TOWER_BAR_MIN_PIXELS,
     TOWER_BAR_ROW_SEARCH,
     TOWER_HP_BARS,
@@ -39,6 +40,7 @@ class BattleState:
     ours_their_half: tuple[int, int]
     tower_hp: dict[str, float | None]  # keys TOWERS; None = destroyed
     elapsed: float
+    enemy_at_tower: tuple[int, int] = (0, 0)  # enemy unit-bar pixels in the tower band (y >= TOWER_BAND_Y)
 
     def threatened_lane(self) -> str | None:
         left, right = self.enemy_our_half
@@ -106,7 +108,12 @@ def unit_bar_masks(iar: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 def lane_counts(mask: np.ndarray, half: str) -> tuple[int, int]:
     """(left, right) pixel counts of `mask` on the given half ("our" below the river, "their" above)."""
     _, top, _, bottom = ARENA_LTRB
-    rows = mask[RIVER_Y:bottom] if half == "our" else mask[top:RIVER_Y]
+    if half == "our":
+        rows = mask[RIVER_Y:bottom]
+    elif half == "tower":
+        rows = mask[TOWER_BAND_Y:bottom]
+    else:
+        rows = mask[top:RIVER_Y]
     return int(rows[:, :LANE_SPLIT_X].sum()), int(rows[:, LANE_SPLIT_X:].sum())
 
 
@@ -150,4 +157,5 @@ def read_battle_state(iar: np.ndarray, elapsed: float) -> BattleState:
         ours_their_half=lane_counts(ours, "their"),
         tower_hp={tower: tower_hp_fraction(iar, tower) for tower in TOWERS},
         elapsed=elapsed,
+        enemy_at_tower=lane_counts(enemy, "tower"),
     )

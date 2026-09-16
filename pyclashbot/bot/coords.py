@@ -192,6 +192,9 @@ RESULT_DEFEAT_BANNER_SUBCROP = (120, 45, 300, 95)
 ARENA_LTRB = (55, 60, 365, 470)
 LANE_SPLIT_X = 209
 RIVER_Y = 283
+# Rows from here down are the tower band: an enemy here is hitting a princess tower.
+TOWER_BAND_Y = 330
+AT_TOWER_MIN = 10  # enemy bar pixels in the tower band that count (empty arena ~4)
 # Tower footprints (x1, y1, x2, y2). Each unit-bar mask excludes only the towers of its
 # own colour (enemy red art for the enemy mask, our blue art for ours), so attackers
 # standing on a tower are still counted. Our king box extends upward over its bar.
