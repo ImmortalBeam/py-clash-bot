@@ -194,6 +194,9 @@ LANE_SPLIT_X = 209
 RIVER_Y = 283
 # Rows from here down are the tower band: an enemy here is hitting a princess tower.
 TOWER_BAND_Y = 330
+# Rows just above the river on the enemy side: a group here is about to cross.
+INCOMING_BAND_Y = 223
+INCOMING_MIN = 60  # enemy bar pixels there that count as an incoming push (swarm ~240)
 AT_TOWER_MIN = 10  # enemy bar pixels in the tower band that count (empty arena ~4)
 # Tower footprints (x1, y1, x2, y2). Each unit-bar mask excludes only the towers of its
 # own colour (enemy red art for the enemy mask, our blue art for ours), so attackers

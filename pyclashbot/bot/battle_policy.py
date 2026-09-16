@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from pyclashbot.bot.coords import AT_TOWER_MIN
+from pyclashbot.bot.coords import AT_TOWER_MIN, INCOMING_MIN
 
 if TYPE_CHECKING:
     from pyclashbot.bot.battle_state import BattleState
@@ -38,6 +38,7 @@ CHEAP_CARDS = frozenset(
     }
 )
 TOWER_UNDER_FIRE_DROP = 0.08  # health lost between two ticks that means something is hitting the tower
+OPENING_S = 20.0  # no chip plays in the opening: keep elixir for the opponent's first push
 CHIP_MIN_ELIXIR = 7  # keep a cushion: a chip card must not leave us empty for the counter-push
 PUSH_COOLDOWN_S = 15.0  # no chip on top of a push we just committed to
 
@@ -172,10 +173,13 @@ def threat_in_lanes(state: BattleState) -> tuple[str | None, int]:
     for idx, lane in enumerate(("left", "right")):
         at_tower = state.enemy_at_tower[idx]
         count = state.enemy_our_half[idx]
+        incoming = state.enemy_incoming[idx]
         if at_tower >= AT_TOWER_MIN:
             threat = max(count, at_tower, THREAT_MEDIUM)
         elif count >= THREAT_TRIVIAL:
             threat = count
+        elif incoming >= INCOMING_MIN:
+            threat = max(incoming, THREAT_MEDIUM)  # meet it as it crosses
         else:
             continue
         if threat > best[1]:
@@ -230,7 +234,7 @@ def decide(
         )
 
     push_settled = push is None or state.elapsed - push.started_at > PUSH_COOLDOWN_S
-    if push_settled and state.elixir >= CHIP_MIN_ELIXIR and _has_role(hand, "chip"):
+    if state.elapsed >= OPENING_S and push_settled and state.elixir >= CHIP_MIN_ELIXIR and _has_role(hand, "chip"):
         return Decision("chip", target, ("chip",), CHIP_MIN_ELIXIR, "chip", f"chip {target} tower")
 
     if state.elixir >= threshold and _has_role(hand, "support"):

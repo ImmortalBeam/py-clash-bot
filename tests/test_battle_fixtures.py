@@ -20,6 +20,7 @@ NAMES = [
     "t026_enemy_at_our_tower",
     "t004_bar_row_offset",
     "t032_hog_at_our_tower",
+    "t013_swarm_crossing_bridge",
 ]
 
 

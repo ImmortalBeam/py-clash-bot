@@ -6,6 +6,7 @@ from pyclashbot.bot.battle_policy import (
     CHIP_MIN_ELIXIR,
     DEFEND_COOLDOWN_S,
     FINISH_MIN_ELAPSED_S,
+    OPENING_S,
     PUSH_COOLDOWN_S,
     THREAT_LARGE,
     THREAT_MEDIUM,
@@ -228,3 +229,27 @@ def test_a_small_group_at_the_bridge_only_gets_a_cheap_answer() -> None:
 def test_a_large_group_on_our_tower_unlocks_everything() -> None:
     d = decide(state_at_tower(5, at_tower=(200, 0), our_half=(200, 0)), CHEAP_HAND, None)
     assert d.kind == "defend" and "tank" in d.roles and "small_spell" in d.roles
+
+
+def test_no_chip_during_the_opening() -> None:
+    """2026-09-16 matches 4 and 6: an opening Goblin Barrel left 4 elixir when the Hog push came."""
+    hand = [HandCard(0, "goblin_barrel", "chip"), HandCard(1, "musketeer", "support")]
+    d = decide(state(elixir=10, elapsed=OPENING_S - 1), hand, None)
+    assert d.kind != "chip"
+    d = decide(state(elixir=CHIP_MIN_ELIXIR, elapsed=OPENING_S + 1), hand, None)
+    assert d.kind == "chip"
+
+
+def state_incoming(elixir: int, incoming: tuple[int, int]) -> BattleState:
+    return BattleState(elixir, (0, 0), (0, 0), (0, 0), dict(FULL), 60.0, enemy_incoming=incoming)
+
+
+def test_incoming_group_is_defended_before_it_crosses() -> None:
+    d = decide(state_incoming(6, incoming=(240, 0)), CHEAP_HAND, None)
+    assert d.kind == "defend" and d.lane == "left"
+    assert "support" in d.roles
+
+
+def test_small_incoming_activity_is_ignored() -> None:
+    d = decide(state_incoming(6, incoming=(30, 0)), CHEAP_HAND, None)
+    assert d.kind != "defend"

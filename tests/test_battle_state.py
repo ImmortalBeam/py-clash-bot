@@ -134,3 +134,14 @@ def test_units_in_the_tower_band_are_counted_separately() -> None:
         or max(read_battle_state(load("t000_empty"), elapsed=0.0).enemy_at_tower) < 10
     )
     assert read_battle_state(load("t026_enemy_at_our_tower"), elapsed=26.0).enemy_at_tower[0] >= 10
+
+
+def test_enemy_group_about_to_cross_is_seen_as_incoming() -> None:
+    """2026-09-16 match 4: a swarm at their side of the bridge, 4 s before it hit our tower."""
+    state = read_battle_state(load("t013_swarm_crossing_bridge"), elapsed=13.0)
+    assert state.enemy_incoming[0] >= 60
+    assert state.enemy_incoming[1] < 60
+    assert max(read_battle_state(load("t000_empty"), elapsed=0.0).enemy_incoming) < 10
+    assert (
+        max(read_battle_state(load("t078_our_push_left"), elapsed=78.0).enemy_incoming) < 10
+    )  # our own push is not incoming

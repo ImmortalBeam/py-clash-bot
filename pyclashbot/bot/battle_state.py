@@ -16,6 +16,7 @@ from pyclashbot.bot.coords import (
     EMOTE_PICKER_WHITE_MIN,
     ENEMY_PRESENCE_MIN,
     ENEMY_TOWER_BOXES,
+    INCOMING_BAND_Y,
     LANE_SPLIT_X,
     OUR_TOWER_BOXES,
     RIVER_Y,
@@ -41,6 +42,7 @@ class BattleState:
     tower_hp: dict[str, float | None]  # keys TOWERS; None = destroyed
     elapsed: float
     enemy_at_tower: tuple[int, int] = (0, 0)  # enemy unit-bar pixels in the tower band (y >= TOWER_BAND_Y)
+    enemy_incoming: tuple[int, int] = (0, 0)  # enemy unit-bar pixels just above the river on their side
 
     def threatened_lane(self) -> str | None:
         left, right = self.enemy_our_half
@@ -112,6 +114,8 @@ def lane_counts(mask: np.ndarray, half: str) -> tuple[int, int]:
         rows = mask[RIVER_Y:bottom]
     elif half == "tower":
         rows = mask[TOWER_BAND_Y:bottom]
+    elif half == "incoming":
+        rows = mask[INCOMING_BAND_Y:RIVER_Y]
     else:
         rows = mask[top:RIVER_Y]
     return int(rows[:, :LANE_SPLIT_X].sum()), int(rows[:, LANE_SPLIT_X:].sum())
@@ -158,4 +162,5 @@ def read_battle_state(iar: np.ndarray, elapsed: float) -> BattleState:
         tower_hp={tower: tower_hp_fraction(iar, tower) for tower in TOWERS},
         elapsed=elapsed,
         enemy_at_tower=lane_counts(enemy, "tower"),
+        enemy_incoming=lane_counts(enemy, "incoming"),
     )
